@@ -1,0 +1,6 @@
+{
+  "name": "Bookora",
+  "description": "Digital book marketplace & reader ecosystem. Discover. Read. Publish.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">बुकरा</string>
+    <string name="tagline">खोजें। पढ़ें। प्रकाशित करें।</string>
+    <string name="nav_home">होम</string>
+    <string name="nav_explore">एक्सप्लोर</string>
+    <string name="nav_library">लाइब्रेरी</string>
+    <string name="nav_wishlist">विशलिस्ट</string>
+    <string name="nav_profile">प्रोफाइल</string>
+    <string name="btn_checkout">चेकआउट करें</string>
+    <string name="btn_read_now">अभी पढ़ें</string>
+    <string name="btn_add_to_cart">कार्ट में जोड़ें</string>
+    <string name="label_free">मुफ्त</string>
+    <string name="label_rating">रेटिंग</string>
+    <string name="label_author">लेखक</string>
+    <string name="label_category">श्रेणी</string>
+    <string name="label_pages">पृष्ठ</string>
+    <string name="label_language">भाषा</string>
+    <string name="status_published">प्रकाशित</string>
+    <string name="status_under_review">समीक्षाधीन</string>
+    <string name="msg_offline_ready">किताब डाउनलोड हो गई है और ऑफलाइन पढ़ने के लिए तैयार है।</string>
+    <string name="msg_referral_reward">दोस्तों को आमंत्रित करें और ₹100 की बुकरा रीडिंग क्रेडिट पाएं!</string>
+</resources>

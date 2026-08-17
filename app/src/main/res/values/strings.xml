@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Bookora</string>
+    <string name="tagline">Discover. Read. Publish.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_library">Library</string>
+    <string name="nav_wishlist">Wishlist</string>
+    <string name="nav_profile">Profile</string>
+    <string name="btn_checkout">Proceed to Checkout</string>
+    <string name="btn_read_now">Read Now</string>
+    <string name="btn_add_to_cart">Add to Cart</string>
+    <string name="label_free">Free</string>
+    <string name="label_rating">Rating</string>
+    <string name="label_author">Author</string>
+    <string name="label_category">Category</string>
+    <string name="label_pages">Pages</string>
+    <string name="label_language">Language</string>
+    <string name="status_published">Published</string>
+    <string name="status_under_review">Under Review</string>
+    <string name="msg_offline_ready">Book downloaded and ready for offline reading.</string>
+    <string name="msg_referral_reward">Invite friends &amp; earn ₹100 Bookora reading credit!</string>
+</resources>
