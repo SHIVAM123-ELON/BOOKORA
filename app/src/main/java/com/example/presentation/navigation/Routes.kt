@@ -33,6 +33,15 @@ sealed class Screen(val route: String) {
     object Subscriptions : Screen("subscriptions")
     object AuthorFinancial : Screen("author_financial")
     object AdminFinancial : Screen("admin_financial")
+
+    // Phase 8 Open Publisher & Creator Reward screens
+    object UploadBook : Screen("upload_book")
+    object CreatorEarnings : Screen("creator_earnings")
+    object MyUploads : Screen("my_uploads")
+    object AdminModeration : Screen("admin_moderation")
+
+    // Phase 9 Verified Reader & Trusted Reviews screens
+    object AdminReviewModeration : Screen("admin_review_moderation")
 }
 
 data class BottomNavItem(

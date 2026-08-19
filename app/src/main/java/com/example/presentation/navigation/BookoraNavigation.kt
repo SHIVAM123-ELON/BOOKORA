@@ -46,6 +46,8 @@ import com.example.presentation.screens.ReaderScreen
 import com.example.presentation.screens.RegisterScreen
 import com.example.presentation.screens.WishlistScreen
 import com.example.presentation.screens.financial.*
+import com.example.presentation.screens.publisher.*
+import com.example.presentation.screens.review.*
 import com.example.presentation.viewmodel.AuthViewModel
 import com.example.presentation.viewmodel.BookDetailsViewModel
 import com.example.presentation.viewmodel.ExploreViewModel
@@ -54,6 +56,8 @@ import com.example.presentation.viewmodel.LibraryViewModel
 import com.example.presentation.viewmodel.ViewModelFactory
 import com.example.presentation.viewmodel.WishlistViewModel
 import com.example.presentation.viewmodel.financial.*
+import com.example.presentation.viewmodel.publisher.*
+import com.example.presentation.viewmodel.review.*
 import com.example.ui.theme.PolishBackground
 import com.example.ui.theme.PolishPrimaryContainer
 import com.example.ui.theme.PolishPrimaryIndigo
@@ -247,6 +251,10 @@ fun BookoraAppNavHost(
                     onNavigateToAuthorFinancial = { navController.navigate(Screen.AuthorFinancial.route) },
                     onNavigateToAdminFinancial = { navController.navigate(Screen.AdminFinancial.route) },
                     onNavigateToCart = { navController.navigate(Screen.Cart.route) },
+                    onNavigateToUploadBook = { navController.navigate(Screen.UploadBook.route) },
+                    onNavigateToCreatorEarnings = { navController.navigate(Screen.CreatorEarnings.route) },
+                    onNavigateToMyUploads = { navController.navigate(Screen.MyUploads.route) },
+                    onNavigateToAdminModeration = { navController.navigate(Screen.AdminModeration.route) },
                     onNavigateToLogin = { navController.navigate(Screen.Login.route) }
                 )
             }
@@ -395,6 +403,43 @@ fun BookoraAppNavHost(
                 val adminFinancialViewModel: AdminFinancialViewModel = viewModel(factory = factory)
                 AdminFinancialScreen(
                     viewModel = adminFinancialViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Phase 8: Open Publisher & Creator ₹1 Reward System
+            composable(Screen.UploadBook.route) {
+                val uploadBookViewModel: UploadBookViewModel = viewModel(factory = factory)
+                UploadBookScreen(
+                    viewModel = uploadBookViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEarnings = { navController.navigate(Screen.CreatorEarnings.route) },
+                    onNavigateToMyUploads = { navController.navigate(Screen.MyUploads.route) }
+                )
+            }
+
+            composable(Screen.CreatorEarnings.route) {
+                val creatorEarningsViewModel: CreatorEarningsViewModel = viewModel(factory = factory)
+                CreatorEarningsScreen(
+                    viewModel = creatorEarningsViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUpload = { navController.navigate(Screen.UploadBook.route) }
+                )
+            }
+
+            composable(Screen.MyUploads.route) {
+                val creatorEarningsViewModel: CreatorEarningsViewModel = viewModel(factory = factory)
+                MyUploadsScreen(
+                    viewModel = creatorEarningsViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUpload = { navController.navigate(Screen.UploadBook.route) }
+                )
+            }
+
+            composable(Screen.AdminModeration.route) {
+                val adminModerationViewModel: AdminModerationViewModel = viewModel(factory = factory)
+                AdminModerationScreen(
+                    viewModel = adminModerationViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

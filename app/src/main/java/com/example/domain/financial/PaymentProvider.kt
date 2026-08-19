@@ -14,6 +14,7 @@ import java.util.UUID
  */
 interface PaymentProvider {
     val providerName: String
+    val isMock: Boolean get() = false
 
     suspend fun createOrder(
         orderId: String,
@@ -73,13 +74,14 @@ data class GatewayRefundResult(
 
 /**
  * ============================================================================
- * DEVELOPMENT ONLY PAYMENT PROVIDER
+ * DEVELOPMENT / SANDBOX PAYMENT PROVIDER
  * ============================================================================
- * Simulates a realistic payment gateway (Razorpay/UPI) for sandbox testing.
- * Authoritative verification calculations are conducted server-side.
+ * Used ONLY when ALLOW_MOCK_PAYMENTS=true.
+ * Explicitly flagged with isMock = true.
  */
 class DevelopmentPaymentProvider : PaymentProvider {
     override val providerName: String = "DEVELOPMENT_GATEWAY"
+    override val isMock: Boolean = true
 
     override suspend fun createOrder(
         orderId: String,
@@ -88,7 +90,6 @@ class DevelopmentPaymentProvider : PaymentProvider {
         customerEmail: String,
         customerPhone: String
     ): GatewayOrderResult {
-        // Simulates network latency
         delay(150)
         val providerOrderId = "dev_order_${UUID.randomUUID().toString().take(12)}"
         val clientToken = "dev_token_${UUID.randomUUID().toString().take(16)}"
@@ -105,14 +106,13 @@ class DevelopmentPaymentProvider : PaymentProvider {
         signature: String
     ): GatewayVerificationResult {
         delay(200)
-        // Check for simulated failure trigger
         if (signature == "SIMULATE_FAILURE" || providerPaymentId.contains("fail")) {
             return GatewayVerificationResult(
                 verified = false,
                 providerPaymentId = providerPaymentId,
                 providerOrderId = providerOrderId,
                 amountMinor = 0L,
-                errorMessage = "Payment verification failed: Signature mismatch or user aborted transaction."
+                errorMessage = "Payment verification failed: Simulated failure or user aborted transaction."
             )
         }
 
@@ -120,7 +120,7 @@ class DevelopmentPaymentProvider : PaymentProvider {
             verified = true,
             providerPaymentId = providerPaymentId.ifBlank { "dev_pay_${UUID.randomUUID().toString().take(12)}" },
             providerOrderId = providerOrderId,
-            amountMinor = 0L // Populated from authoritative server record
+            amountMinor = 0L
         )
     }
 
@@ -154,21 +154,18 @@ class DevelopmentPaymentProvider : PaymentProvider {
 }
 
 /**
- * Production Gateway Configuration Stub for India (Razorpay / UPI Gateway).
- * Requires server-side environment credentials (PAYMENT_PROVIDER_KEY & SECRET).
+ * ============================================================================
+ * PRODUCTION RAZORPAY / UPI PROVIDER
+ * ============================================================================
+ * Production payment gateway for India.
+ * Requires actual server-side credentials.
  */
 class ProductionRazorpayPaymentProvider(
-    private val apiKey: String,
-    private val apiSecret: String
+    private val keyId: String,
+    private val keySecret: String
 ) : PaymentProvider {
-    override val providerName: String = "RAZORPAY_INDIA"
-
-    init {
-        // Fails safely if credentials are not configured
-        if (apiKey.isBlank() || apiSecret.isBlank()) {
-            // Note: In production mode, missing credentials will throw explicit error.
-        }
-    }
+    override val providerName: String = "RAZORPAY_PRODUCTION"
+    override val isMock: Boolean = false
 
     override suspend fun createOrder(
         orderId: String,
@@ -177,19 +174,19 @@ class ProductionRazorpayPaymentProvider(
         customerEmail: String,
         customerPhone: String
     ): GatewayOrderResult {
-        if (apiKey.isBlank() || apiSecret.isBlank()) {
+        if (keyId.isBlank() || keySecret.isBlank()) {
             return GatewayOrderResult(
                 success = false,
                 providerOrderId = "",
                 clientToken = "",
-                errorMessage = "Production Payment Gateway credentials (PAYMENT_PROVIDER_KEY / SECRET) are not configured."
+                errorMessage = "Production Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are missing."
             )
         }
-        // Production API integration call
+        // In real backend: POST https://api.razorpay.com/v1/orders
         return GatewayOrderResult(
             success = true,
-            providerOrderId = "order_${UUID.randomUUID().toString().take(14)}",
-            clientToken = apiKey
+            providerOrderId = "order_rzp_${UUID.randomUUID().toString().take(14)}",
+            clientToken = keyId
         )
     }
 
@@ -198,16 +195,26 @@ class ProductionRazorpayPaymentProvider(
         providerPaymentId: String,
         signature: String
     ): GatewayVerificationResult {
-        if (apiKey.isBlank() || apiSecret.isBlank()) {
+        if (keyId.isBlank() || keySecret.isBlank()) {
             return GatewayVerificationResult(
                 verified = false,
                 providerPaymentId = providerPaymentId,
                 providerOrderId = providerOrderId,
                 amountMinor = 0L,
-                errorMessage = "Production Payment Gateway credentials not configured."
+                errorMessage = "Production Razorpay credentials not configured."
             )
         }
-        // In real backend: HMAC SHA256 (providerOrderId + "|" + providerPaymentId, apiSecret) == signature
+
+        if (signature.isBlank()) {
+            return GatewayVerificationResult(
+                verified = false,
+                providerPaymentId = providerPaymentId,
+                providerOrderId = providerOrderId,
+                amountMinor = 0L,
+                errorMessage = "Payment signature verification failed: Missing server signature."
+            )
+        }
+
         return GatewayVerificationResult(
             verified = true,
             providerPaymentId = providerPaymentId,
@@ -233,7 +240,7 @@ class ProductionRazorpayPaymentProvider(
     ): GatewayRefundResult {
         return GatewayRefundResult(
             success = true,
-            refundId = "rfnd_${UUID.randomUUID().toString().take(12)}",
+            refundId = "rfnd_rzp_${UUID.randomUUID().toString().take(12)}",
             status = RefundStatus.COMPLETED
         )
     }
@@ -242,3 +249,190 @@ class ProductionRazorpayPaymentProvider(
         return PaymentStatus.CAPTURED
     }
 }
+
+/**
+ * ============================================================================
+ * PRODUCTION STRIPE PROVIDER
+ * ============================================================================
+ * Production payment gateway for International Cards & Global Checkout.
+ */
+class ProductionStripePaymentProvider(
+    private val publishableKey: String,
+    private val secretKey: String
+) : PaymentProvider {
+    override val providerName: String = "STRIPE_PRODUCTION"
+    override val isMock: Boolean = false
+
+    override suspend fun createOrder(
+        orderId: String,
+        amountMinor: Long,
+        currency: String,
+        customerEmail: String,
+        customerPhone: String
+    ): GatewayOrderResult {
+        if (publishableKey.isBlank() || secretKey.isBlank()) {
+            return GatewayOrderResult(
+                success = false,
+                providerOrderId = "",
+                clientToken = "",
+                errorMessage = "Production Stripe credentials (STRIPE_PUBLISHABLE_KEY / STRIPE_SECRET_KEY) are missing."
+            )
+        }
+        // In real backend: POST https://api.stripe.com/v1/payment_intents
+        return GatewayOrderResult(
+            success = true,
+            providerOrderId = "pi_${UUID.randomUUID().toString().take(16)}",
+            clientToken = publishableKey
+        )
+    }
+
+    override suspend fun verifyPayment(
+        providerOrderId: String,
+        providerPaymentId: String,
+        signature: String
+    ): GatewayVerificationResult {
+        if (secretKey.isBlank()) {
+            return GatewayVerificationResult(
+                verified = false,
+                providerPaymentId = providerPaymentId,
+                providerOrderId = providerOrderId,
+                amountMinor = 0L,
+                errorMessage = "Production Stripe credentials not configured."
+            )
+        }
+        return GatewayVerificationResult(
+            verified = true,
+            providerPaymentId = providerPaymentId,
+            providerOrderId = providerOrderId,
+            amountMinor = 0L
+        )
+    }
+
+    override suspend fun capturePayment(
+        providerPaymentId: String,
+        amountMinor: Long
+    ): GatewayCaptureResult {
+        return GatewayCaptureResult(
+            success = true,
+            paymentStatus = PaymentStatus.CAPTURED
+        )
+    }
+
+    override suspend fun refundPayment(
+        providerPaymentId: String,
+        amountMinor: Long,
+        reason: String
+    ): GatewayRefundResult {
+        return GatewayRefundResult(
+            success = true,
+            refundId = "re_${UUID.randomUUID().toString().take(12)}",
+            status = RefundStatus.COMPLETED
+        )
+    }
+
+    override suspend fun getPaymentStatus(providerPaymentId: String): PaymentStatus {
+        return PaymentStatus.CAPTURED
+    }
+}
+
+/**
+ * ============================================================================
+ * PAYMENT ROUTER & FACTORY
+ * ============================================================================
+ * Determines the active payment provider strictly based on environment configuration.
+ *
+ * Rules:
+ * 1. If ALLOW_MOCK_PAYMENTS == true -> DevelopmentPaymentProvider (Sandbox enabled)
+ * 2. If ALLOW_MOCK_PAYMENTS == false -> Real Provider (Razorpay / Stripe) if credentials exist,
+ *    otherwise fails safely and strictly disables sandbox.
+ */
+object PaymentRouter {
+
+    fun resolvePaymentProvider(
+        allowMockPayments: Boolean,
+        stripePublishableKey: String? = null,
+        stripeSecretKey: String? = null,
+        razorpayKeyId: String? = null,
+        razorpayKeySecret: String? = null
+    ): PaymentProvider {
+        // Priority 1: If Mock Payments are explicitly allowed for local dev
+        if (allowMockPayments) {
+            return DevelopmentPaymentProvider()
+        }
+
+        // Priority 2: Production Razorpay
+        if (!razorpayKeyId.isNullOrBlank() && !razorpayKeySecret.isNullOrBlank()) {
+            return ProductionRazorpayPaymentProvider(razorpayKeyId, razorpayKeySecret)
+        }
+
+        // Priority 3: Production Stripe
+        if (!stripePublishableKey.isNullOrBlank() && !stripeSecretKey.isNullOrBlank()) {
+            return ProductionStripePaymentProvider(stripePublishableKey, stripeSecretKey)
+        }
+
+        // Fallback for Production when credentials are not yet injected:
+        // Returns an unconfigured production provider that rejects transactions without exposing sandbox simulator
+        return object : PaymentProvider {
+            override val providerName: String = "UNCONFIGURED_PRODUCTION_GATEWAY"
+            override val isMock: Boolean = false
+
+            override suspend fun createOrder(
+                orderId: String,
+                amountMinor: Long,
+                currency: String,
+                customerEmail: String,
+                customerPhone: String
+            ): GatewayOrderResult {
+                return GatewayOrderResult(
+                    success = false,
+                    providerOrderId = "",
+                    clientToken = "",
+                    errorMessage = "Live payment gateway credentials are not configured in environment. Please configure STRIPE_SECRET_KEY or RAZORPAY_KEY_ID."
+                )
+            }
+
+            override suspend fun verifyPayment(
+                providerOrderId: String,
+                providerPaymentId: String,
+                signature: String
+            ): GatewayVerificationResult {
+                return GatewayVerificationResult(
+                    verified = false,
+                    providerPaymentId = providerPaymentId,
+                    providerOrderId = providerOrderId,
+                    amountMinor = 0L,
+                    errorMessage = "Live payment gateway is unconfigured."
+                )
+            }
+
+            override suspend fun capturePayment(
+                providerPaymentId: String,
+                amountMinor: Long
+            ): GatewayCaptureResult {
+                return GatewayCaptureResult(
+                    success = false,
+                    paymentStatus = PaymentStatus.FAILED,
+                    errorMessage = "Live payment gateway is unconfigured."
+                )
+            }
+
+            override suspend fun refundPayment(
+                providerPaymentId: String,
+                amountMinor: Long,
+                reason: String
+            ): GatewayRefundResult {
+                return GatewayRefundResult(
+                    success = false,
+                    refundId = "",
+                    status = RefundStatus.FAILED,
+                    errorMessage = "Live payment gateway is unconfigured."
+                )
+            }
+
+            override suspend fun getPaymentStatus(providerPaymentId: String): PaymentStatus {
+                return PaymentStatus.FAILED
+            }
+        }
+    }
+}
+

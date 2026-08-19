@@ -21,11 +21,14 @@ import com.example.domain.usecase.GetBookSummaryUseCase
 import com.example.domain.usecase.GetChapterSummaryUseCase
 import com.example.domain.usecase.GetPersonalizedRecommendationsUseCase
 import com.example.domain.usecase.SemanticSearchUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -304,20 +307,27 @@ class SemanticSearchViewModel(
     private val _filter = MutableStateFlow(BookFilter())
     val filter: StateFlow<BookFilter> = _filter.asStateFlow()
 
-    val searchResults: StateFlow<UiState<List<SemanticSearchResult>>> = kotlinx.coroutines.flow.combine(
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val searchResults: StateFlow<UiState<List<SemanticSearchResult>>> = combine(
         _searchQuery,
         _filter
-    ) { query, filter ->
-        query to filter
-    }.kotlinx.coroutines.flow.flatMapLatest { (query, filter) ->
+    ) { query: String, filter: BookFilter ->
+        Pair(query, filter)
+    }.flatMapLatest { pair ->
+        val query = pair.first
+        val filter = pair.second
         semanticSearchUseCase(query, filter)
             .map { list ->
                 if (list.isEmpty()) UiState.Empty else UiState.Success(list)
             }
             .catch { emit(UiState.Error(it.message ?: "Semantic search failed", it)) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState.Loading)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState.Empty)
 
     fun onQueryChanged(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun performSemanticSearch(query: String) {
         _searchQuery.value = query
     }
 
@@ -326,6 +336,10 @@ class SemanticSearchViewModel(
     }
 
     fun clearQuery() {
+        _searchQuery.value = ""
+    }
+
+    fun clearSearch() {
         _searchQuery.value = ""
     }
 }

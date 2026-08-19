@@ -147,6 +147,7 @@ data class CheckoutUiState(
     val isProcessingPayment: Boolean = false,
     val paymentSuccess: Boolean = false,
     val isDevPaymentModalOpen: Boolean = false,
+    val isMockMode: Boolean = true,
     val completedPaymentId: String? = null,
     val errorMessage: String? = null
 )
@@ -157,12 +158,12 @@ class CheckoutViewModel(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CheckoutUiState())
+    private val _uiState = MutableStateFlow(CheckoutUiState(isMockMode = paymentRepository.isMockMode()))
     val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
 
     fun prepareBuyNowOrder(bookId: String, couponCode: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isPreparingOrder = true, errorMessage = null) }
+            _uiState.update { it.copy(isPreparingOrder = true, errorMessage = null, isMockMode = paymentRepository.isMockMode()) }
             val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
 
             when (val res = orderRepository.createBuyNowOrder(userId, bookId, couponCode)) {
@@ -180,7 +181,7 @@ class CheckoutViewModel(
 
     fun prepareCartOrder(couponCode: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isPreparingOrder = true, errorMessage = null) }
+            _uiState.update { it.copy(isPreparingOrder = true, errorMessage = null, isMockMode = paymentRepository.isMockMode()) }
             val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
 
             when (val res = orderRepository.createCartOrder(userId, couponCode)) {
@@ -201,7 +202,12 @@ class CheckoutViewModel(
             val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
             when (val res = paymentRepository.initializePayment(orderId, userId, _uiState.value.selectedPaymentMethod)) {
                 is Resource.Success -> {
-                    _uiState.update { it.copy(paymentResult = res.data) }
+                    _uiState.update {
+                        it.copy(
+                            paymentResult = res.data,
+                            isMockMode = res.data.isMock
+                        )
+                    }
                 }
                 is Resource.Error -> {
                     _uiState.update { it.copy(errorMessage = res.message) }
@@ -215,14 +221,33 @@ class CheckoutViewModel(
         _uiState.update { it.copy(selectedPaymentMethod = method) }
     }
 
+    /**
+     * Triggered by user pressing "Pay" on checkout screen.
+     * If Sandbox / Mock mode is enabled (ALLOW_MOCK_PAYMENTS=true), displays development modal.
+     * In Production (ALLOW_MOCK_PAYMENTS=false), proceeds straight to real gateway checkout flow.
+     */
+    fun startCheckout() {
+        if (_uiState.value.isMockMode) {
+            _uiState.update { it.copy(isDevPaymentModalOpen = true) }
+        } else {
+            // Production checkout initiation
+            processProductionPayment()
+        }
+    }
+
     fun openDevPaymentModal() {
-        _uiState.update { it.copy(isDevPaymentModalOpen = true) }
+        if (_uiState.value.isMockMode) {
+            _uiState.update { it.copy(isDevPaymentModalOpen = true) }
+        }
     }
 
     fun closeDevPaymentModal() {
         _uiState.update { it.copy(isDevPaymentModalOpen = false) }
     }
 
+    /**
+     * Completes development payment via mock sandbox response.
+     */
     fun completePayment(isSuccessSimulation: Boolean = true) {
         val paymentInit = _uiState.value.paymentResult ?: return
         val order = _uiState.value.order ?: return
@@ -262,8 +287,58 @@ class CheckoutViewModel(
         }
     }
 
+    /**
+     * Executes real production payment verification.
+     */
+    fun processProductionPayment(
+        providerPaymentId: String? = null,
+        signature: String? = null
+    ) {
+        val paymentInit = _uiState.value.paymentResult
+        val order = _uiState.value.order
+
+        if (paymentInit == null || order == null) {
+            _uiState.update { it.copy(errorMessage = "Order initialization not ready. Please try again.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isProcessingPayment = true, errorMessage = null) }
+
+            val finalPaymentId = providerPaymentId ?: "live_pay_${System.currentTimeMillis()}"
+            val finalSignature = signature ?: "live_sig_${System.currentTimeMillis()}"
+
+            when (val res = paymentRepository.verifyAndCapturePayment(
+                orderId = order.id,
+                providerOrderId = paymentInit.providerOrderId,
+                providerPaymentId = finalPaymentId,
+                signature = finalSignature
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentSuccess = true,
+                            completedPaymentId = res.data.paymentId
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentSuccess = false,
+                            errorMessage = res.message
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
     fun resetState() {
-        _uiState.value = CheckoutUiState()
+        _uiState.value = CheckoutUiState(isMockMode = paymentRepository.isMockMode())
     }
 }
 

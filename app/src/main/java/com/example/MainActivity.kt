@@ -17,6 +17,9 @@ import com.example.data.repository.LibraryRepositoryImpl
 import com.example.data.repository.SearchRepositoryImpl
 import com.example.data.repository.WishlistRepositoryImpl
 import com.example.data.repository.financial.*
+import com.example.data.repository.publisher.PublisherRepositoryImpl
+import com.example.domain.financial.PaymentRouter
+import com.example.domain.publisher.PdfValidationService
 import com.example.presentation.navigation.BookoraAppNavHost
 import com.example.presentation.viewmodel.AuthViewModel
 import com.example.presentation.viewmodel.BookDetailsViewModel
@@ -28,11 +31,15 @@ import com.example.presentation.viewmodel.ViewModelFactory
 import com.example.presentation.viewmodel.WishlistViewModel
 import com.example.presentation.viewmodel.financial.*
 import com.example.ui.theme.BookoraTheme
+import com.example.util.EnvironmentDiagnosticService
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Log environment diagnostics to Logcat on application startup
+        EnvironmentDiagnosticService.logStartupDiagnostics()
 
         // Clean Architecture & Dependency Injection Setup
         val database = BookoraDatabase.getInstance(applicationContext)
@@ -54,13 +61,27 @@ class MainActivity : ComponentActivity() {
         val couponRepository = CouponRepositoryImpl(database)
         val cartRepository = CartRepositoryImpl(database, couponRepository)
         val orderRepository = OrderRepositoryImpl(database, couponRepository)
-        val paymentRepository = PaymentRepositoryImpl(database = database, entitlementRepository = entitlementRepository)
+
+        // Resolve PaymentProvider via PaymentRouter using injected environment configuration
+        val allowMockPayments = EnvironmentDiagnosticService.isMockPaymentsAllowed()
+        val paymentProvider = PaymentRouter.resolvePaymentProvider(
+            allowMockPayments = allowMockPayments
+        )
+        val paymentRepository = PaymentRepositoryImpl(
+            database = database,
+            paymentProvider = paymentProvider,
+            entitlementRepository = entitlementRepository
+        )
         val refundRepository = RefundRepositoryImpl(database = database, entitlementRepository = entitlementRepository)
         val subscriptionRepository = SubscriptionRepositoryImpl(database)
         val royaltyRepository = RoyaltyRepositoryImpl(database)
         val walletRepository = WalletRepositoryImpl(database)
         val payoutRepository = PayoutRepositoryImpl(database)
         val adminRepository = FinancialAdminRepositoryImpl(database)
+
+        // Phase 8 Open Publisher & Rewards Repositories
+        val publisherRepository = PublisherRepositoryImpl(database = database)
+        val pdfValidationService = PdfValidationService(context = applicationContext)
 
         val factory = ViewModelFactory(
             authRepo = authRepository,
@@ -79,7 +100,9 @@ class MainActivity : ComponentActivity() {
             royaltyRepo = royaltyRepository,
             walletRepo = walletRepository,
             payoutRepo = payoutRepository,
-            adminRepo = adminRepository
+            adminRepo = adminRepository,
+            publisherRepo = publisherRepository,
+            pdfValidationService = pdfValidationService
         )
 
         setContent {

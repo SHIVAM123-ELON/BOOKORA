@@ -79,6 +79,11 @@ fun ProfileScreen(
     onNavigateToAuthorFinancial: () -> Unit = {},
     onNavigateToAdminFinancial: () -> Unit = {},
     onNavigateToCart: () -> Unit = {},
+    onNavigateToUploadBook: () -> Unit = {},
+    onNavigateToCreatorEarnings: () -> Unit = {},
+    onNavigateToMyUploads: () -> Unit = {},
+    onNavigateToAdminModeration: () -> Unit = {},
+    onNavigateToAdminReviewModeration: () -> Unit = {},
     onNavigateToLogin: () -> Unit
 ) {
     val currentUser by authViewModel.currentUser.collectAsStateWithLifecycle()
@@ -242,6 +247,58 @@ fun ProfileScreen(
         // Ecosystem Portals Section
         Spacer(modifier = Modifier.height(16.dp))
         Text(
+            text = "Open Publisher & Creator Rewards (₹1/Book)",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = PolishSlate900,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+        )
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, PolishSlate100)
+        ) {
+            Column {
+                ProfileMenuItem(
+                    icon = Icons.Default.AutoStories,
+                    title = "Submit PDF Book (Earn ₹1)",
+                    subtitle = "Upload manuscripts for moderation and publication",
+                    onClick = onNavigateToUploadBook,
+                    testTag = "menu_upload_book"
+                )
+                HorizontalDivider(color = PolishSlate100)
+                ProfileMenuItem(
+                    icon = Icons.Default.AccountBalanceWallet,
+                    title = "Creator Balance & Payouts",
+                    subtitle = "View ₹1 approval rewards, ledger, and withdraw to UPI",
+                    onClick = onNavigateToCreatorEarnings,
+                    testTag = "menu_creator_earnings"
+                )
+                HorizontalDivider(color = PolishSlate100)
+                ProfileMenuItem(
+                    icon = Icons.Default.ReceiptLong,
+                    title = "My Uploaded Books",
+                    subtitle = "Track submission status, review feedback & approvals",
+                    onClick = onNavigateToMyUploads,
+                    testTag = "menu_my_uploads"
+                )
+                HorizontalDivider(color = PolishSlate100)
+                ProfileMenuItem(
+                    icon = Icons.Default.AdminPanelSettings,
+                    title = "Open Publisher Moderation",
+                    subtitle = "Review pending manuscripts, credit ₹1, and approve payouts",
+                    onClick = onNavigateToAdminModeration,
+                    testTag = "menu_admin_moderation"
+                )
+            }
+        }
+
+        // Ecosystem Portals Section
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
             text = "Ecosystem Portals",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = PolishSlate900,
@@ -287,6 +344,14 @@ fun ProfileScreen(
                     subtitle = "Process payouts, handle refund disputes, platform take rate",
                     onClick = onNavigateToAdminFinancial,
                     testTag = "menu_admin_financial"
+                )
+                HorizontalDivider(color = PolishSlate100)
+                ProfileMenuItem(
+                    icon = Icons.Default.RateReview,
+                    title = "Review Moderation Center",
+                    subtitle = "Phase 9: Trusted reviews, flag investigation & reader badges",
+                    onClick = onNavigateToAdminReviewModeration,
+                    testTag = "menu_admin_review_moderation"
                 )
             }
         }

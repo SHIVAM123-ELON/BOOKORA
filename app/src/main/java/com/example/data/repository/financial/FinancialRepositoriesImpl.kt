@@ -420,7 +420,8 @@ class PaymentRepositoryImpl(
                     clientToken = gatewayResult.clientToken,
                     amountMinor = order.totalMinor,
                     currency = order.currency,
-                    provider = paymentProvider.providerName
+                    provider = paymentProvider.providerName,
+                    isMock = paymentProvider.isMock
                 )
             )
         } catch (e: Exception) {
@@ -587,6 +588,10 @@ class PaymentRepositoryImpl(
         )
         database.webhookEventDao().insertEvent(eventEntity)
         return Resource.Success(true)
+    }
+
+    override fun isMockMode(): Boolean {
+        return paymentProvider.isMock
     }
 
     override fun getPaymentByOrderId(orderId: String): Flow<Payment?> {

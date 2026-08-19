@@ -64,7 +64,7 @@ fun CheckoutScreen(
                             .padding(16.dp)
                     ) {
                         Button(
-                            onClick = { viewModel.openDevPaymentModal() },
+                            onClick = { viewModel.startCheckout() },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -392,8 +392,8 @@ fun CheckoutScreen(
             }
         }
 
-        // Development Sandbox Payment Simulator Modal
-        if (state.isDevPaymentModalOpen) {
+        // Development Sandbox Payment Simulator Modal (Strictly disabled in production)
+        if (state.isMockMode && state.isDevPaymentModalOpen) {
             AlertDialog(
                 onDismissRequest = { viewModel.closeDevPaymentModal() },
                 title = {

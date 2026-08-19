@@ -85,12 +85,15 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.example.presentation.screens.review.BookReviewsSection
+import com.example.presentation.viewmodel.review.BookReviewsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookDetailsScreen(
     bookId: String,
     bookDetailsViewModel: BookDetailsViewModel,
+    reviewsViewModel: BookReviewsViewModel? = null,
     onNavigateBack: () -> Unit,
     onNavigateToReader: (String) -> Unit,
     onNavigateToCheckout: (String) -> Unit = {},
@@ -473,6 +476,18 @@ fun BookDetailsScreen(
                                 )
                             }
                         }
+                    }
+
+                    // Phase 9: Verified Reader & Trusted Reviews Section
+                    if (reviewsViewModel != null) {
+                        Spacer(modifier = Modifier.height(28.dp))
+                        HorizontalDivider(color = PolishSlate200)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        BookReviewsSection(
+                            bookId = currentBook.id,
+                            bookTitle = currentBook.title,
+                            viewModel = reviewsViewModel
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(28.dp))

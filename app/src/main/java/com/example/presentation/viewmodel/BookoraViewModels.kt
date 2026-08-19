@@ -23,7 +23,12 @@ import com.example.domain.repository.LibraryRepository
 import com.example.domain.repository.SearchRepository
 import com.example.domain.repository.WishlistRepository
 import com.example.domain.repository.financial.*
+import com.example.domain.publisher.PdfValidationService
+import com.example.domain.repository.publisher.PublisherRepository
+import com.example.domain.repository.review.ReviewRepository
 import com.example.presentation.viewmodel.financial.*
+import com.example.presentation.viewmodel.publisher.*
+import com.example.presentation.viewmodel.review.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -419,7 +424,10 @@ class ViewModelFactory(
     private val royaltyRepo: RoyaltyRepository? = null,
     private val walletRepo: WalletRepository? = null,
     private val payoutRepo: PayoutRepository? = null,
-    private val adminRepo: FinancialAdminRepository? = null
+    private val adminRepo: FinancialAdminRepository? = null,
+    private val publisherRepo: PublisherRepository? = null,
+    private val pdfValidationService: PdfValidationService? = null,
+    private val reviewRepo: ReviewRepository? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -454,6 +462,26 @@ class ViewModelFactory(
             modelClass.isAssignableFrom(AdminFinancialViewModel::class.java) -> {
                 if (adminRepo != null && payoutRepo != null && refundRepo != null && orderRepo != null) AdminFinancialViewModel(adminRepo, payoutRepo, refundRepo, orderRepo) as T
                 else throw IllegalArgumentException("Admin, Payout, Refund, Order repositories required")
+            }
+            modelClass.isAssignableFrom(UploadBookViewModel::class.java) -> {
+                if (publisherRepo != null && pdfValidationService != null) UploadBookViewModel(publisherRepo, authRepo, pdfValidationService) as T
+                else throw IllegalArgumentException("PublisherRepository and PdfValidationService required")
+            }
+            modelClass.isAssignableFrom(CreatorEarningsViewModel::class.java) -> {
+                if (publisherRepo != null) CreatorEarningsViewModel(publisherRepo, authRepo) as T
+                else throw IllegalArgumentException("PublisherRepository required")
+            }
+            modelClass.isAssignableFrom(AdminModerationViewModel::class.java) -> {
+                if (publisherRepo != null) AdminModerationViewModel(publisherRepo, authRepo) as T
+                else throw IllegalArgumentException("PublisherRepository required")
+            }
+            modelClass.isAssignableFrom(BookReviewsViewModel::class.java) -> {
+                if (reviewRepo != null) BookReviewsViewModel(reviewRepo, authRepo) as T
+                else throw IllegalArgumentException("ReviewRepository required")
+            }
+            modelClass.isAssignableFrom(AdminReviewModerationViewModel::class.java) -> {
+                if (reviewRepo != null) AdminReviewModerationViewModel(reviewRepo, authRepo) as T
+                else throw IllegalArgumentException("ReviewRepository required")
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

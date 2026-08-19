@@ -47,6 +47,7 @@ interface PaymentRepository {
         paymentId: String
     ): Resource<Boolean>
 
+    fun isMockMode(): Boolean
     fun getPaymentByOrderId(orderId: String): Flow<Payment?>
     fun getAllPayments(): Flow<List<Payment>>
 }
@@ -58,7 +59,8 @@ data class PaymentInitiationResult(
     val clientToken: String,
     val amountMinor: Long,
     val currency: String,
-    val provider: String
+    val provider: String,
+    val isMock: Boolean = false
 )
 
 data class PaymentCaptureResultData(

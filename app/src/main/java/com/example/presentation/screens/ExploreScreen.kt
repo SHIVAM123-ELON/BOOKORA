@@ -82,8 +82,8 @@ fun ExploreScreen(
     val filter by exploreViewModel.filter.collectAsStateWithLifecycle()
     val categoriesState by exploreViewModel.categories.collectAsStateWithLifecycle()
     val booksState by exploreViewModel.exploreBooks.collectAsStateWithLifecycle()
-    val semanticResultsState by (semanticSearchViewModel?.semanticResults?.collectAsStateWithLifecycle()
-        ?: remember { mutableStateOf(UiState.Idle) })
+    val semanticResultsState by (semanticSearchViewModel?.searchResults?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf<UiState<List<com.example.domain.model.SemanticSearchResult>>>(UiState.Empty) })
 
     var isSemanticMode by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }

@@ -57,6 +57,8 @@ import com.example.ui.theme.PolishSlate900
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.presentation.components.ai.AuthorAiAssistantDialog
@@ -66,6 +68,7 @@ import com.example.presentation.viewmodel.AuthorAiAssistantViewModel
 @Composable
 fun AuthorStudioScreen(
     authorAiAssistantViewModel: AuthorAiAssistantViewModel? = null,
+    onNavigateToFinancials: () -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
     var showAiDialog by remember { mutableStateOf(false) }
@@ -309,7 +312,10 @@ fun AuthorStudioScreen(
 
         if (showAiDialog && authorAiAssistantViewModel != null) {
             AuthorAiAssistantDialog(
+                userId = "author_1",
+                initialTitle = "Mobile System Architecture",
                 viewModel = authorAiAssistantViewModel,
+                onApplySuggestion = { /* apply suggestion */ },
                 onDismiss = { showAiDialog = false }
             )
         }
