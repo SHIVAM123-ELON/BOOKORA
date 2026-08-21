@@ -1,0 +1,235 @@
+package com.example.core.audio
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.util.Locale
+
+/**
+ * Manages audio recording, speech recognition, audio visualizer levels, and TTS audio playback.
+ */
+class AudioEngine(private val context: Context) : TextToSpeech.OnInitListener {
+
+    private val TAG = "AudioEngine"
+
+    private var textToSpeech: TextToSpeech? = null
+    private var isTtsReady = false
+
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isRecognizerActive = false
+
+    private val _isListening = MutableStateFlow(false)
+    val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
+
+    private val _isSpeaking = MutableStateFlow(false)
+    val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
+
+    private val _audioLevel = MutableStateFlow(0f) // Normalized 0.0f - 1.0f for visualizer
+    val audioLevel: StateFlow<Float> = _audioLevel.asStateFlow()
+
+    private var onSpeechResultListener: ((String) -> Unit)? = null
+    private var onSpeechPartialListener: ((String) -> Unit)? = null
+    private var onSpeakingFinishedListener: (() -> Unit)? = null
+
+    init {
+        try {
+            textToSpeech = TextToSpeech(context.applicationContext, this)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init TextToSpeech", e)
+        }
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = textToSpeech?.setLanguage(Locale.US)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.w(TAG, "TTS Language US not supported or missing data")
+            } else {
+                isTtsReady = true
+                textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        _isSpeaking.value = true
+                    }
+
+                    override fun onDone(utteranceId: String?) {
+                        _isSpeaking.value = false
+                        _audioLevel.value = 0f
+                        onSpeakingFinishedListener?.invoke()
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        _isSpeaking.value = false
+                        _audioLevel.value = 0f
+                    }
+                })
+            }
+        }
+    }
+
+    fun startListening(
+        onResult: (String) -> Unit,
+        onPartial: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            onError("Speech recognition not available on this device")
+            return
+        }
+
+        stopSpeaking()
+        this.onSpeechResultListener = onResult
+        this.onSpeechPartialListener = onPartial
+
+        try {
+            speechRecognizer?.destroy()
+            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        _isListening.value = true
+                        isRecognizerActive = true
+                    }
+
+                    override fun onBeginningOfSpeech() {
+                        _isListening.value = true
+                    }
+
+                    override fun onRmsChanged(rmsdB: Float) {
+                        // Normalize RMS dB (-2 to 10) to 0.0 .. 1.0 for audio wave visualizer
+                        val normalized = ((rmsdB + 2f) / 12f).coerceIn(0.05f, 1f)
+                        _audioLevel.value = normalized
+                    }
+
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+
+                    override fun onEndOfSpeech() {
+                        _isListening.value = false
+                        _audioLevel.value = 0.05f
+                    }
+
+                    override fun onError(error: Int) {
+                        _isListening.value = false
+                        _audioLevel.value = 0f
+                        isRecognizerActive = false
+                        val message = when (error) {
+                            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                            SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission required"
+                            SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
+                            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognition service busy"
+                            SpeechRecognizer.ERROR_SERVER -> "Server error"
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+                            else -> "Recognition error: $error"
+                        }
+                        if (error != SpeechRecognizer.ERROR_NO_MATCH && error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
+                            onError(message)
+                        }
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        _isListening.value = false
+                        _audioLevel.value = 0f
+                        isRecognizerActive = false
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val text = matches?.firstOrNull()
+                        if (!text.isNullOrBlank()) {
+                            onSpeechResultListener?.invoke(text)
+                        }
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        val text = matches?.firstOrNull()
+                        if (!text.isNullOrBlank()) {
+                            onSpeechPartialListener?.invoke(text)
+                        }
+                    }
+
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+            }
+
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            }
+
+            speechRecognizer?.startListening(intent)
+        } catch (e: Exception) {
+            _isListening.value = false
+            onError("Failed to start voice listener: ${e.localizedMessage}")
+        }
+    }
+
+    fun stopListening() {
+        try {
+            speechRecognizer?.stopListening()
+            _isListening.value = false
+            _audioLevel.value = 0f
+            isRecognizerActive = false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping speech recognizer", e)
+        }
+    }
+
+    fun speak(
+        text: String,
+        pitch: Float = 1.0f,
+        speechRate: Float = 1.0f,
+        onFinished: (() -> Unit)? = null
+    ) {
+        if (!isTtsReady || textToSpeech == null) {
+            Log.w(TAG, "TTS not ready")
+            return
+        }
+
+        stopSpeaking()
+        this.onSpeakingFinishedListener = onFinished
+
+        textToSpeech?.let { tts ->
+            tts.setPitch(pitch)
+            tts.setSpeechRate(speechRate)
+            _isSpeaking.value = true
+            val utteranceId = "utterance_${System.currentTimeMillis()}"
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        }
+    }
+
+    fun stopSpeaking() {
+        try {
+            if (_isSpeaking.value) {
+                textToSpeech?.stop()
+                _isSpeaking.value = false
+                _audioLevel.value = 0f
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping TTS", e)
+        }
+    }
+
+    fun setSimulatedAudioLevel(level: Float) {
+        _audioLevel.value = level.coerceIn(0f, 1f)
+    }
+
+    fun release() {
+        stopListening()
+        stopSpeaking()
+        speechRecognizer?.destroy()
+        speechRecognizer = null
+        textToSpeech?.shutdown()
+        textToSpeech = null
+    }
+}

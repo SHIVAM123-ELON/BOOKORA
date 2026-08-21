@@ -42,6 +42,14 @@ sealed class Screen(val route: String) {
 
     // Phase 9 Verified Reader & Trusted Reviews screens
     object AdminReviewModeration : Screen("admin_review_moderation")
+
+    // Live Gemini 3.1 Flash Voice Conversations
+    object VoiceConversation : Screen("voice_conversation?bookId={bookId}") {
+        fun createRoute(bookId: String = "") = "voice_conversation?bookId=$bookId"
+    }
+
+    // Phase 11: Barcode & QR Physical Book Scanner
+    object BookScanner : Screen("book_scanner")
 }
 
 data class BottomNavItem(

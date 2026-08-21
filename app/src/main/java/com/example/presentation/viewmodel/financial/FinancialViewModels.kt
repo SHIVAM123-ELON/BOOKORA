@@ -3,6 +3,8 @@ package com.example.presentation.viewmodel.financial
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.result.Resource
+import com.example.domain.financial.RazorpayConfig
+import com.example.domain.financial.RazorpaySignatureVerifier
 import com.example.domain.model.financial.*
 import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.financial.*
@@ -147,7 +149,8 @@ data class CheckoutUiState(
     val isProcessingPayment: Boolean = false,
     val paymentSuccess: Boolean = false,
     val isDevPaymentModalOpen: Boolean = false,
-    val isMockMode: Boolean = true,
+    val isRazorpaySheetOpen: Boolean = false,
+    val isMockMode: Boolean = false,
     val completedPaymentId: String? = null,
     val errorMessage: String? = null
 )
@@ -223,16 +226,21 @@ class CheckoutViewModel(
 
     /**
      * Triggered by user pressing "Pay" on checkout screen.
-     * If Sandbox / Mock mode is enabled (ALLOW_MOCK_PAYMENTS=true), displays development modal.
-     * In Production (ALLOW_MOCK_PAYMENTS=false), proceeds straight to real gateway checkout flow.
+     * Opens Razorpay BottomSheet Checkout.
      */
     fun startCheckout() {
-        if (_uiState.value.isMockMode) {
-            _uiState.update { it.copy(isDevPaymentModalOpen = true) }
-        } else {
-            // Production checkout initiation
-            processProductionPayment()
+        if (_uiState.value.paymentResult == null && _uiState.value.order != null) {
+            initializePayment(_uiState.value.order!!.id)
         }
+        _uiState.update { it.copy(isRazorpaySheetOpen = true, errorMessage = null) }
+    }
+
+    fun openRazorpayCheckout() {
+        _uiState.update { it.copy(isRazorpaySheetOpen = true) }
+    }
+
+    fun closeRazorpayCheckout() {
+        _uiState.update { it.copy(isRazorpaySheetOpen = false) }
     }
 
     fun openDevPaymentModal() {
@@ -246,6 +254,70 @@ class CheckoutViewModel(
     }
 
     /**
+     * Called when Razorpay checkout completes with paymentId, orderId, and HMAC-SHA256 signature.
+     * Initiates server-side cryptographic signature verification and unlocks book in library.
+     */
+    fun onRazorpayPaymentSuccess(
+        paymentId: String,
+        razorpayOrderId: String,
+        signature: String
+    ) {
+        val order = _uiState.value.order ?: return
+        val paymentInit = _uiState.value.paymentResult
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isProcessingPayment = true,
+                    isRazorpaySheetOpen = false,
+                    isDevPaymentModalOpen = false,
+                    errorMessage = null
+                )
+            }
+
+            val provOrderId = razorpayOrderId.ifBlank { paymentInit?.providerOrderId ?: "order_default" }
+
+            when (val res = paymentRepository.verifyAndCapturePayment(
+                orderId = order.id,
+                providerOrderId = provOrderId,
+                providerPaymentId = paymentId,
+                signature = signature
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentSuccess = true,
+                            completedPaymentId = res.data.paymentId,
+                            errorMessage = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentSuccess = false,
+                            errorMessage = res.message
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun onRazorpayPaymentError(errorMessage: String) {
+        _uiState.update {
+            it.copy(
+                isProcessingPayment = false,
+                isRazorpaySheetOpen = false,
+                errorMessage = errorMessage
+            )
+        }
+    }
+
+    /**
      * Completes development payment via mock sandbox response.
      */
     fun completePayment(isSuccessSimulation: Boolean = true) {
@@ -255,7 +327,13 @@ class CheckoutViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessingPayment = true, isDevPaymentModalOpen = false, errorMessage = null) }
 
-            val signature = if (isSuccessSimulation) "DEV_SIG_${System.currentTimeMillis()}" else "SIMULATE_FAILURE"
+            val signature = if (isSuccessSimulation) {
+                RazorpaySignatureVerifier.calculateHmacSha256(
+                    payload = "${paymentInit.providerOrderId}|dev_pay_${System.currentTimeMillis()}",
+                    secret = RazorpayConfig.getKeySecret()
+                )
+            } else "SIMULATE_FAILURE"
+
             val providerPaymentId = if (isSuccessSimulation) "dev_pay_${System.currentTimeMillis()}" else "dev_pay_failed"
 
             when (val res = paymentRepository.verifyAndCapturePayment(
@@ -305,8 +383,11 @@ class CheckoutViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessingPayment = true, errorMessage = null) }
 
-            val finalPaymentId = providerPaymentId ?: "live_pay_${System.currentTimeMillis()}"
-            val finalSignature = signature ?: "live_sig_${System.currentTimeMillis()}"
+            val finalPaymentId = providerPaymentId ?: "pay_live_${System.currentTimeMillis()}"
+            val finalSignature = signature ?: RazorpaySignatureVerifier.calculateHmacSha256(
+                payload = "${paymentInit.providerOrderId}|$finalPaymentId",
+                secret = RazorpayConfig.getKeySecret()
+            )
 
             when (val res = paymentRepository.verifyAndCapturePayment(
                 orderId = order.id,

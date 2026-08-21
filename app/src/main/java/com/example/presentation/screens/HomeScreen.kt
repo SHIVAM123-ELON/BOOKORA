@@ -59,6 +59,7 @@ import com.example.presentation.components.EmptySectionNotice
 import com.example.presentation.components.SectionErrorState
 import com.example.presentation.components.SectionHeader
 import com.example.presentation.components.SectionLoadingIndicator
+import com.example.presentation.components.voice.VoiceCompanionBannerCard
 import com.example.presentation.viewmodel.HomeViewModel
 import com.example.ui.theme.PolishBackground
 import com.example.ui.theme.PolishPrimaryIndigo
@@ -72,6 +73,7 @@ import com.example.ui.theme.PolishSlate900
 
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CardMembership
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.IconButton
 
@@ -83,7 +85,9 @@ fun HomeScreen(
     onNavigateToExplore: () -> Unit,
     onNavigateToAuthorStudio: () -> Unit,
     onNavigateToCart: () -> Unit = {},
-    onNavigateToSubscriptions: () -> Unit = {}
+    onNavigateToSubscriptions: () -> Unit = {},
+    onNavigateToVoiceConversation: (String) -> Unit = {},
+    onNavigateToScanner: () -> Unit = {}
 ) {
     val continueReadingItem by homeViewModel.continueReading.collectAsStateWithLifecycle()
     val trendingBooksState by homeViewModel.trendingBooks.collectAsStateWithLifecycle()
@@ -205,7 +209,7 @@ fun HomeScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -216,13 +220,37 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Search books, authors, ISBN, tags...",
+                            text = "Search books, authors, ISBN...",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = PolishSlate400
+                            color = PolishSlate400,
+                            modifier = Modifier.weight(1f)
                         )
+                        IconButton(
+                            onClick = onNavigateToScanner,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(PolishPrimaryIndigo.copy(alpha = 0.1f), CircleShape)
+                                .testTag("home_search_scanner_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "Scan Physical Book Barcode",
+                                tint = PolishPrimaryIndigo,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // AI Live Voice Companion Banner
+        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+            VoiceCompanionBannerCard(
+                onStartVoice = { onNavigateToVoiceConversation("") }
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.core.storage.TokenManager
 import com.example.data.local.BookoraDatabase
 import com.example.data.local.FinancialDatabaseSeeder
+import com.example.data.local.ReviewDatabaseSeeder
 import com.example.data.repository.AuthRepositoryImpl
 import com.example.data.repository.AuthorRepositoryImpl
 import com.example.data.repository.BookRepositoryImpl
@@ -17,7 +18,9 @@ import com.example.data.repository.LibraryRepositoryImpl
 import com.example.data.repository.SearchRepositoryImpl
 import com.example.data.repository.WishlistRepositoryImpl
 import com.example.data.repository.financial.*
+import com.example.data.repository.offline.OfflineBookRepositoryImpl
 import com.example.data.repository.publisher.PublisherRepositoryImpl
+import com.example.data.repository.review.ReviewRepositoryImpl
 import com.example.domain.financial.PaymentRouter
 import com.example.domain.publisher.PdfValidationService
 import com.example.presentation.navigation.BookoraAppNavHost
@@ -45,8 +48,9 @@ class MainActivity : ComponentActivity() {
         val database = BookoraDatabase.getInstance(applicationContext)
         val tokenManager = TokenManager(applicationContext)
 
-        // Seed initial monetization and financial defaults (coupons, bundles, settings, plans)
+        // Seed initial monetization, financial defaults and reviews
         FinancialDatabaseSeeder.seedDefaults(database)
+        ReviewDatabaseSeeder.seedDefaults(database)
 
         val authRepository = AuthRepositoryImpl(database, tokenManager)
         val bookRepository = BookRepositoryImpl(database)
@@ -83,6 +87,12 @@ class MainActivity : ComponentActivity() {
         val publisherRepository = PublisherRepositoryImpl(database = database)
         val pdfValidationService = PdfValidationService(context = applicationContext)
 
+        // Phase 9 Verified Reader & Trusted Reviews Repository
+        val reviewRepository = ReviewRepositoryImpl(db = database)
+
+        // Phase 10 Offline Room Cache Repository
+        val offlineBookRepository = OfflineBookRepositoryImpl(db = database)
+
         val factory = ViewModelFactory(
             authRepo = authRepository,
             bookRepo = bookRepository,
@@ -102,7 +112,10 @@ class MainActivity : ComponentActivity() {
             payoutRepo = payoutRepository,
             adminRepo = adminRepository,
             publisherRepo = publisherRepository,
-            pdfValidationService = pdfValidationService
+            pdfValidationService = pdfValidationService,
+            reviewRepo = reviewRepository,
+            offlineBookRepo = offlineBookRepository,
+            application = application
         )
 
         setContent {

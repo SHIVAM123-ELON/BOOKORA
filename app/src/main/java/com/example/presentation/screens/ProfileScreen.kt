@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -347,7 +348,7 @@ fun ProfileScreen(
                 )
                 HorizontalDivider(color = PolishSlate100)
                 ProfileMenuItem(
-                    icon = Icons.Default.RateReview,
+                    icon = Icons.Default.Star,
                     title = "Review Moderation Center",
                     subtitle = "Phase 9: Trusted reviews, flag investigation & reader badges",
                     onClick = onNavigateToAdminReviewModeration,

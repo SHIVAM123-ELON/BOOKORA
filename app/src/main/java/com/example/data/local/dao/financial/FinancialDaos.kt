@@ -48,6 +48,12 @@ interface PaymentDao {
     @Query("SELECT * FROM payments WHERE id = :paymentId")
     suspend fun getPaymentById(paymentId: String): PaymentEntity?
 
+    @Query("SELECT * FROM payments WHERE providerPaymentId = :providerPaymentId LIMIT 1")
+    suspend fun getPaymentByProviderPaymentId(providerPaymentId: String): PaymentEntity?
+
+    @Query("SELECT * FROM payments WHERE providerOrderId = :providerOrderId LIMIT 1")
+    suspend fun getPaymentByProviderOrderId(providerOrderId: String): PaymentEntity?
+
     @Query("SELECT * FROM payments WHERE orderId = :orderId")
     fun getPaymentByOrderId(orderId: String): Flow<PaymentEntity?>
 

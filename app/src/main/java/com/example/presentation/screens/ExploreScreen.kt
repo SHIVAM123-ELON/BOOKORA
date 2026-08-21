@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Sort
@@ -76,7 +78,9 @@ import com.example.ui.theme.PolishSlate900
 fun ExploreScreen(
     exploreViewModel: ExploreViewModel,
     semanticSearchViewModel: SemanticSearchViewModel? = null,
-    onNavigateToBookDetails: (String) -> Unit
+    onNavigateToBookDetails: (String) -> Unit,
+    onNavigateToVoiceConversation: (String) -> Unit = {},
+    onNavigateToScanner: () -> Unit = {}
 ) {
     val query by exploreViewModel.searchQuery.collectAsStateWithLifecycle()
     val filter by exploreViewModel.filter.collectAsStateWithLifecycle()
@@ -97,6 +101,30 @@ fun ExploreScreen(
             title = "Explore Catalog",
             subtitle = if (isSemanticMode) "AI Semantic Discovery enabled" else "Search by title, author, category or topics",
             actions = {
+                // Physical Book Barcode & QR Scanner
+                IconButton(
+                    onClick = onNavigateToScanner,
+                    modifier = Modifier.testTag("explore_scanner_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCodeScanner,
+                        contentDescription = "Scan Book Barcode / ISBN",
+                        tint = PolishPrimaryIndigo
+                    )
+                }
+
+                // Voice Discovery Companion
+                IconButton(
+                    onClick = { onNavigateToVoiceConversation("") },
+                    modifier = Modifier.testTag("explore_voice_companion_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.GraphicEq,
+                        contentDescription = "Voice Discovery Companion",
+                        tint = PolishPrimaryIndigo
+                    )
+                }
+
                 Box {
                     IconButton(
                         onClick = { showSortMenu = true },

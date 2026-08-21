@@ -21,6 +21,7 @@ val PolishSlate700 = Color(0xFF334155)
 val PolishSlate600 = Color(0xFF475569)
 val PolishSlate500 = Color(0xFF64748B)           // Subtitle text
 val PolishSlate400 = Color(0xFF94A3B8)           // Inactive icons / borders
+val PolishSlate300 = Color(0xFFCBD5E1)           // Subtle borders / divider
 val PolishSlate200 = Color(0xFFE2E8F0)
 val PolishSlate100 = Color(0xFFF1F5F9)           // Surface borders / inputs
 val PolishSlate50 = Color(0xFFF8FAFC)

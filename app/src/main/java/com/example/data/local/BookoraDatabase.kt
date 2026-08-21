@@ -18,6 +18,7 @@ import com.example.data.local.dao.RecommendationEventDao
 import com.example.data.local.dao.UserDao
 import com.example.data.local.dao.WishlistDao
 import com.example.data.local.dao.financial.*
+import com.example.data.local.dao.offline.*
 import com.example.data.local.dao.publisher.*
 import com.example.data.local.dao.review.*
 import com.example.data.local.entity.AiConversationEntity
@@ -34,6 +35,7 @@ import com.example.data.local.entity.RecommendationEventEntity
 import com.example.data.local.entity.UserEntity
 import com.example.data.local.entity.WishlistEntity
 import com.example.data.local.entity.financial.*
+import com.example.data.local.entity.offline.*
 import com.example.data.local.entity.publisher.*
 import com.example.data.local.entity.review.*
 
@@ -81,9 +83,11 @@ import com.example.data.local.entity.review.*
         BookReviewEntity::class,
         ReviewHelpfulVoteEntity::class,
         ReviewReportEntity::class,
-        ReviewAuditEntity::class
+        ReviewAuditEntity::class,
+        CachedBookContentEntity::class,
+        CachedChapterEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class BookoraDatabase : RoomDatabase() {
@@ -128,10 +132,15 @@ abstract class BookoraDatabase : RoomDatabase() {
     // Phase 9 Verified Reader & Trusted Reviews DAOs
     abstract fun readerVerificationDao(): ReaderVerificationDao
     abstract fun readingActivityDao(): ReadingActivityDao
-    abstract fun reviewDao(): ReviewDao
+    abstract fun readingSessionDao(): ReadingSessionDao
+    abstract fun bookReviewDao(): BookReviewDao
+    fun reviewDao(): BookReviewDao = bookReviewDao()
     abstract fun reviewHelpfulVoteDao(): ReviewHelpfulVoteDao
     abstract fun reviewReportDao(): ReviewReportDao
     abstract fun reviewAuditDao(): ReviewAuditDao
+
+    // Phase 10 Offline Room Cache DAOs
+    abstract fun bookContentCacheDao(): BookContentCacheDao
 
     companion object {
         @Volatile

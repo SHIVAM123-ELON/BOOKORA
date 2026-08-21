@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,11 +20,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.domain.model.financial.Money
+import com.example.domain.financial.RazorpayConfig
 import com.example.presentation.viewmodel.financial.CheckoutUiState
 import com.example.presentation.viewmodel.financial.CheckoutViewModel
 
@@ -34,6 +36,7 @@ fun CheckoutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLibrary: () -> Unit,
     onNavigateToOrderHistory: () -> Unit,
+    onNavigateToReader: (bookId: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -42,7 +45,36 @@ fun CheckoutScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Secure Checkout", fontWeight = FontWeight.Bold) },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Secure Checkout", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF00BAF2).copy(alpha = 0.15f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.VerifiedUser,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00BAF2),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "Razorpay",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF0C2340),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -69,24 +101,26 @@ fun CheckoutScreen(
                                 .fillMaxWidth()
                                 .height(52.dp)
                                 .testTag("pay_now_button"),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2)),
                             enabled = !state.isProcessingPayment
                         ) {
                             if (state.isProcessingPayment) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    strokeWidth = 2.dp
+                                    color = Color.White,
+                                    strokeWidth = 2.5.dp
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Text("Securing & Authorizing...")
+                                Text("Verifying Signature & Entitlement...", color = Color.White)
                             } else {
-                                Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "Pay ${state.order?.totalMoney?.formatted}",
+                                    "Pay ${state.order?.totalMoney?.formatted} with Razorpay",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
+                                    fontSize = 16.sp,
+                                    color = Color.White
                                 )
                             }
                         }
@@ -96,7 +130,8 @@ fun CheckoutScreen(
         }
     ) { innerPadding ->
         if (state.paymentSuccess) {
-            // Success Screen
+            // Payment Successful Screen
+            val firstBook = state.order?.items?.firstOrNull()
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -107,9 +142,9 @@ fun CheckoutScreen(
                     modifier = Modifier
                         .fillMaxWidth(0.92f)
                         .padding(16.dp),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -117,14 +152,14 @@ fun CheckoutScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(80.dp)
-                                .background(Color(0xFF2E7D32), CircleShape),
+                                .size(76.dp)
+                                .background(Color(0xFF16A34A), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(44.dp),
+                                contentDescription = "Success",
+                                modifier = Modifier.size(42.dp),
                                 tint = Color.White
                             )
                         }
@@ -132,35 +167,96 @@ fun CheckoutScreen(
                         Text(
                             "Payment Successful!",
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32)
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF16A34A)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            "Your digital books are permanently unlocked and ready in your library.",
+                            "Your payment has been verified by the server and permanently added to My Library.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
+
+                        // Book Thumbnail & Order Receipt Card
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                if (firstBook != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        AsyncImage(
+                                            model = firstBook.coverUrlSnapshot,
+                                            contentDescription = firstBook.titleSnapshot,
+                                            modifier = Modifier
+                                                .size(width = 40.dp, height = 55.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                firstBook.titleSnapshot,
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                "Permanent Library Access Granted",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFF16A34A),
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                }
+
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Order ID", style = MaterialTheme.typography.bodySmall)
+                                    Text("Order ID", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(state.order?.id ?: "", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Amount Paid", style = MaterialTheme.typography.bodySmall)
-                                    Text(state.order?.totalMoney?.formatted ?: "", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                                    Text("Razorpay Payment ID", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text((state.completedPaymentId ?: "pay_rzp_verified").take(16), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Amount Paid", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(state.order?.totalMoney?.formatted ?: "", fontWeight = FontWeight.ExtraBold, color = Color(0xFF00BAF2), style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Action 1: Read Now (Direct access to reader)
+                        if (firstBook != null) {
+                            Button(
+                                onClick = { onNavigateToReader(firstBook.bookId) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("read_now_success_btn"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2))
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Color.White)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Read Now", fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // Action 2: Go to My Library
+                        OutlinedButton(
                             onClick = onNavigateToLibrary,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -170,17 +266,17 @@ fun CheckoutScreen(
                         ) {
                             Icon(Icons.Default.Book, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Open in Library", fontWeight = FontWeight.Bold)
+                            Text("Go to My Library", fontWeight = FontWeight.Bold)
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Action 3: Continue Browsing / Order History
+                        TextButton(
                             onClick = onNavigateToOrderHistory,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            modifier = Modifier.testTag("view_receipt_btn")
                         ) {
-                            Text("View Order Receipt")
+                            Text("View Tax Invoice & Receipt", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -313,20 +409,20 @@ fun CheckoutScreen(
                     }
                 }
 
-                // Payment Methods
+                // Payment Methods via Razorpay
                 item {
                     Text(
-                        "Select Payment Method",
+                        "Supported Razorpay Methods",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 val methods = listOf(
-                    Triple("UPI_FAST_PAY", "UPI (Google Pay / PhonePe / Paytm)", Icons.Default.QrCodeScanner),
-                    Triple("CARD_PAY", "Credit / Debit Card (Visa, Mastercard, RuPay)", Icons.Default.CreditCard),
-                    Triple("NET_BANKING", "NetBanking (All Indian Banks)", Icons.Default.AccountBalance),
-                    Triple("BOOKORA_WALLET", "Bookora Digital Wallet", Icons.Default.AccountBalanceWallet)
+                    Triple("UPI_FAST_PAY", "UPI (Google Pay, PhonePe, Paytm, BHIM, QR)", Icons.Default.QrCodeScanner),
+                    Triple("CARD_PAY", "Cards (Credit / Debit: Visa, Mastercard, RuPay)", Icons.Default.CreditCard),
+                    Triple("NET_BANKING", "NetBanking (HDFC, ICICI, SBI, Axis, Kotak & 50+ Banks)", Icons.Default.AccountBalance),
+                    Triple("BOOKORA_WALLET", "Wallets (PhonePe, Amazon Pay, Mobikwik, Bookora Wallet)", Icons.Default.AccountBalanceWallet)
                 )
 
                 items(methods) { (key, label, icon) ->
@@ -340,7 +436,7 @@ fun CheckoutScreen(
                             .fillMaxWidth()
                             .border(
                                 1.5.dp,
-                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                if (isSelected) Color(0xFF00BAF2) else MaterialTheme.colorScheme.outlineVariant,
                                 RoundedCornerShape(12.dp)
                             )
                             .clickable { viewModel.onPaymentMethodSelected(key) }
@@ -354,7 +450,7 @@ fun CheckoutScreen(
                             Icon(
                                 icon,
                                 contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (isSelected) Color(0xFF00BAF2) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
@@ -380,10 +476,10 @@ fun CheckoutScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF2E7D32), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            "256-bit Encrypted SSL Gateway & Instant Entitlement Delivery",
+                            "Razorpay 256-bit SSL Encrypted • Instant Entitlement",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -392,55 +488,31 @@ fun CheckoutScreen(
             }
         }
 
-        // Development Sandbox Payment Simulator Modal (Strictly disabled in production)
-        if (state.isMockMode && state.isDevPaymentModalOpen) {
-            AlertDialog(
-                onDismissRequest = { viewModel.closeDevPaymentModal() },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DeveloperMode, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Payment Sandbox", fontWeight = FontWeight.Bold)
-                    }
+        // Razorpay Checkout Modal / Bottom Sheet
+        if (state.isRazorpaySheetOpen && state.order != null) {
+            val firstItem = state.order?.items?.firstOrNull()
+            val bookTitle = if ((state.order?.items?.size ?: 0) > 1) {
+                "${firstItem?.titleSnapshot} + ${(state.order?.items?.size ?: 1) - 1} more"
+            } else {
+                firstItem?.titleSnapshot ?: "Bookora E-Books"
+            }
+            val razorpayOrderId = state.paymentResult?.providerOrderId?.ifBlank { null }
+                ?: "order_rzp_${state.order?.id?.replace("ord_", "")}"
+
+            RazorpayCheckoutSheet(
+                razorpayOrderId = razorpayOrderId,
+                internalOrderId = state.order!!.id,
+                amountFormatted = state.order?.totalMoney?.formatted ?: "₹0.00",
+                amountPaise = state.order?.totalMinor ?: 0L,
+                bookTitle = bookTitle,
+                keyId = RazorpayConfig.getKeyId(),
+                keySecret = RazorpayConfig.getKeySecret(),
+                onDismiss = { viewModel.closeRazorpayCheckout() },
+                onPaymentSuccess = { paymentId, orderId, signature ->
+                    viewModel.onRazorpayPaymentSuccess(paymentId, orderId, signature)
                 },
-                text = {
-                    Column {
-                        Text(
-                            "DEVELOPMENT MODE GATEWAY SIMULATOR",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Authoritative server orders and signatures are simulated locally. Choose an outcome to test:",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            "Order Total: ${state.order?.totalMoney?.formatted}",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { viewModel.completePayment(isSuccessSimulation = true) },
-                        modifier = Modifier.testTag("simulate_payment_success_btn")
-                    ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Simulate Success (Authorize & Capture)")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = { viewModel.completePayment(isSuccessSimulation = false) },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Simulate Failure")
-                    }
+                onPaymentError = { errorMsg ->
+                    viewModel.onRazorpayPaymentError(errorMsg)
                 }
             )
         }

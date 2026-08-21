@@ -127,7 +127,7 @@ class SecurityAndHardeningTest {
         val validPdf = FileUploadValidator.validateUpload("manuscript.pdf", 1024 * 500, pdfBytes, "ebook")
         assertTrue(validPdf.isAllowed)
 
-        val maliciousFakePdf = byteArrayOf(0x4D, 0x5A, 0x90, 0x00) // Windows EXE PE header disguised as .pdf
+        val maliciousFakePdf = byteArrayOf(0x4D.toByte(), 0x5A.toByte(), 0x90.toByte(), 0x00.toByte()) // Windows EXE PE header disguised as .pdf
         val invalidResult = FileUploadValidator.validateUpload("malware.pdf", 1024 * 500, maliciousFakePdf, "ebook")
         assertFalse(invalidResult.isAllowed)
     }

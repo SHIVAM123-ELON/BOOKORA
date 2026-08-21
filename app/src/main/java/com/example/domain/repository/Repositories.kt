@@ -1,5 +1,6 @@
 package com.example.domain.repository
 
+import android.content.Context
 import com.example.core.result.Resource
 import com.example.domain.model.Author
 import com.example.domain.model.Book
@@ -14,6 +15,9 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     suspend fun login(email: String, password: String): Resource<User>
     suspend fun register(fullName: String, email: String, password: String): Resource<User>
+    suspend fun signInWithGoogleIdToken(idToken: String): Resource<User>
+    suspend fun signInWithGoogle(context: Context): Resource<User>
+    suspend fun sendPasswordResetEmail(email: String): Resource<Unit>
     fun getCurrentUser(): Flow<User?>
     fun isUserLoggedIn(): Flow<Boolean>
     suspend fun logout(): Resource<Unit>
@@ -30,6 +34,9 @@ interface BookRepository {
     fun getBooksByAuthor(authorId: String, excludeBookId: String): Flow<List<Book>>
     fun getSimilarBooks(categoryId: String, excludeBookId: String): Flow<List<Book>>
     fun getBooksByCategory(categoryId: String): Flow<List<Book>>
+    fun getBookByIsbn(isbn: String): Flow<Book?>
+    suspend fun findBookByScannedCode(code: String): Book?
+    suspend fun addOrUpdateBook(book: Book): Resource<Unit>
     suspend fun refreshBooks(): Resource<Unit>
 }
 
@@ -56,6 +63,7 @@ interface WishlistRepository {
     fun getWishlistBooks(): Flow<List<Book>>
     fun isInWishlist(bookId: String): Flow<Boolean>
     suspend fun addToWishlist(bookId: String): Resource<Unit>
+    suspend fun addScannedBookToWishlist(book: Book): Resource<Unit>
     suspend fun removeFromWishlist(bookId: String): Resource<Unit>
     suspend fun toggleWishlist(bookId: String): Resource<Boolean>
 }

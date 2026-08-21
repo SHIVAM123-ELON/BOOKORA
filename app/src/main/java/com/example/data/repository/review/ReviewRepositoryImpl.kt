@@ -126,6 +126,14 @@ class ReviewRepositoryImpl(
         return db.readerVerificationDao().getVerification(userId, bookId).map { it?.toDomain() }
     }
 
+    override fun getReadingActivity(userId: String, bookId: String): Flow<ReadingActivity?> {
+        return db.readingActivityDao().getActivity(userId, bookId).map { it?.toDomain() }
+    }
+
+    override fun getReadingSessions(userId: String, bookId: String): Flow<List<ReadingSession>> {
+        return db.readingSessionDao().getSessions(userId, bookId).map { list -> list.map { it.toDomain() } }
+    }
+
     override suspend fun recordReadingSession(
         userId: String,
         bookId: String,

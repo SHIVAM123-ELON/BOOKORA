@@ -3,8 +3,10 @@ package com.example.data.local
 import com.example.data.local.entity.review.*
 import com.example.domain.model.review.ReviewModerationStatus
 import com.example.domain.model.review.ReviewVerificationStatus
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ReviewDatabaseSeeder(
@@ -162,6 +164,15 @@ class ReviewDatabaseSeeder(
 
         for (rev in sampleReviews) {
             db.reviewDao().insertReview(rev)
+        }
+    }
+
+    companion object {
+        fun seedDefaults(database: BookoraDatabase) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val seeder = ReviewDatabaseSeeder(database)
+                seeder.seedSampleReviewsIfEmpty()
+            }
         }
     }
 }

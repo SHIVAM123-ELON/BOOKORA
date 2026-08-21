@@ -23,7 +23,7 @@ class BookReviewsViewModel(
     private val _sortOption = MutableStateFlow(ReviewSortOption.MOST_HELPFUL)
     val sortOption: StateFlow<ReviewSortOption> = _sortOption.asStateFlow()
 
-    private val _reviewActionState = MutableStateFlow<UiState<String>>(UiState.Idle)
+    private val _reviewActionState = MutableStateFlow<UiState<String>>(UiState.Empty)
     val reviewActionState: StateFlow<UiState<String>> = _reviewActionState.asStateFlow()
 
     private val _eligibilityState = MutableStateFlow<ReviewEligibility?>(null)
@@ -34,7 +34,7 @@ class BookReviewsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "u-default-reader-001")
 
     val currentUserName: StateFlow<String> = authRepository.getCurrentUser()
-        .map { it?.name ?: "Bookora Reader" }
+        .map { it?.fullName ?: "Bookora Reader" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Bookora Reader")
 
     fun setBookId(bookId: String) {
@@ -110,6 +110,9 @@ class BookReviewsViewModel(
                 is Resource.Error -> {
                     _reviewActionState.value = UiState.Error(res.message ?: "Failed to submit review")
                 }
+                is Resource.Loading -> {
+                    _reviewActionState.value = UiState.Loading
+                }
             }
         }
     }
@@ -139,6 +142,9 @@ class BookReviewsViewModel(
                 is Resource.Error -> {
                     _reviewActionState.value = UiState.Error(res.message ?: "Failed to update review")
                 }
+                is Resource.Loading -> {
+                    _reviewActionState.value = UiState.Loading
+                }
             }
         }
     }
@@ -155,6 +161,9 @@ class BookReviewsViewModel(
                 }
                 is Resource.Error -> {
                     _reviewActionState.value = UiState.Error(res.message ?: "Failed to delete review")
+                }
+                is Resource.Loading -> {
+                    _reviewActionState.value = UiState.Loading
                 }
             }
         }
@@ -178,12 +187,13 @@ class BookReviewsViewModel(
             when (val res = reviewRepository.reportReview(reviewId, userId, reason, details)) {
                 is Resource.Success -> onComplete(true, "Report submitted. Our moderation team will investigate.")
                 is Resource.Error -> onComplete(false, res.message ?: "Failed to submit report.")
+                is Resource.Loading -> Unit
             }
         }
     }
 
     fun resetActionState() {
-        _reviewActionState.value = UiState.Idle
+        _reviewActionState.value = UiState.Empty
     }
 }
 
@@ -195,7 +205,7 @@ class AdminReviewModerationViewModel(
     private val _selectedTab = MutableStateFlow("ALL") // ALL, REPORTED, HIDDEN, PUBLISHED
     val selectedTab: StateFlow<String> = _selectedTab.asStateFlow()
 
-    private val _moderationActionState = MutableStateFlow<UiState<String>>(UiState.Idle)
+    private val _moderationActionState = MutableStateFlow<UiState<String>>(UiState.Empty)
     val moderationActionState: StateFlow<UiState<String>> = _moderationActionState.asStateFlow()
 
     val reviewsList: StateFlow<UiState<List<BookReview>>> = combine(
@@ -235,11 +245,14 @@ class AdminReviewModerationViewModel(
                 is Resource.Error -> {
                     _moderationActionState.value = UiState.Error(res.message ?: "Moderation action failed")
                 }
+                is Resource.Loading -> {
+                    _moderationActionState.value = UiState.Loading
+                }
             }
         }
     }
 
     fun resetActionState() {
-        _moderationActionState.value = UiState.Idle
+        _moderationActionState.value = UiState.Empty
     }
 }

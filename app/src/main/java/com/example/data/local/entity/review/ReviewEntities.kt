@@ -136,6 +136,22 @@ data class ReadingSessionEntity(
         endPage = endPage,
         createdAt = createdAt
     )
+
+    companion object {
+        fun fromDomain(s: ReadingSession): ReadingSessionEntity = ReadingSessionEntity(
+            id = s.id,
+            userId = s.userId,
+            bookId = s.bookId,
+            startedAt = s.startedAt,
+            endedAt = s.endedAt,
+            durationSeconds = s.durationSeconds,
+            startProgress = s.startProgress,
+            endProgress = s.endProgress,
+            startPage = s.startPage,
+            endPage = s.endPage,
+            createdAt = s.createdAt
+        )
+    }
 }
 
 @Entity(

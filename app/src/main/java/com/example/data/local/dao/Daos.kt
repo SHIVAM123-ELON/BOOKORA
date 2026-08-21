@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.data.local.entity.AuthorEntity
 import com.example.data.local.entity.BookEntity
 import com.example.data.local.entity.CategoryEntity
@@ -86,6 +87,12 @@ interface BookDao {
     """)
     fun searchBooks(query: String): Flow<List<BookEntity>>
 
+    @Query("SELECT * FROM books WHERE REPLACE(isbn, '-', '') = REPLACE(:isbn, '-', '') OR isbn = :isbn LIMIT 1")
+    fun getBookByIsbn(isbn: String): Flow<BookEntity?>
+
+    @Query("SELECT * FROM books WHERE REPLACE(isbn, '-', '') = REPLACE(:isbn, '-', '') OR isbn = :isbn LIMIT 1")
+    suspend fun getBookByIsbnDirect(isbn: String): BookEntity?
+
     @Query("SELECT * FROM books")
     fun getAllBooks(): Flow<List<BookEntity>>
 
@@ -94,6 +101,9 @@ interface BookDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBook(book: BookEntity)
+
+    @Update
+    suspend fun updateBook(book: BookEntity)
 }
 
 @Dao

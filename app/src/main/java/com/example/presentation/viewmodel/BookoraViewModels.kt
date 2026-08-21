@@ -24,11 +24,17 @@ import com.example.domain.repository.SearchRepository
 import com.example.domain.repository.WishlistRepository
 import com.example.domain.repository.financial.*
 import com.example.domain.publisher.PdfValidationService
+import com.example.domain.repository.offline.OfflineBookRepository
 import com.example.domain.repository.publisher.PublisherRepository
 import com.example.domain.repository.review.ReviewRepository
 import com.example.presentation.viewmodel.financial.*
+import com.example.presentation.viewmodel.offline.OfflineReaderViewModel
 import com.example.presentation.viewmodel.publisher.*
 import com.example.presentation.viewmodel.review.*
+import com.example.presentation.viewmodel.scanner.BookScannerViewModel
+import com.example.presentation.viewmodel.voice.VoiceConversationViewModel
+import android.app.Application
+import android.content.Context
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,6 +64,9 @@ class AuthViewModel(
     private val _authState = MutableStateFlow<Resource<User>?>(null)
     val authState: StateFlow<Resource<User>?> = _authState.asStateFlow()
 
+    private val _passwordResetState = MutableStateFlow<Resource<Unit>?>(null)
+    val passwordResetState: StateFlow<Resource<Unit>?> = _passwordResetState.asStateFlow()
+
     fun login(email: String, pass: String) {
         viewModelScope.launch {
             _authState.value = Resource.Loading
@@ -72,6 +81,27 @@ class AuthViewModel(
         }
     }
 
+    fun signInWithGoogle(context: Context) {
+        viewModelScope.launch {
+            _authState.value = Resource.Loading
+            _authState.value = authRepository.signInWithGoogle(context)
+        }
+    }
+
+    fun signInWithGoogleIdToken(idToken: String) {
+        viewModelScope.launch {
+            _authState.value = Resource.Loading
+            _authState.value = authRepository.signInWithGoogleIdToken(idToken)
+        }
+    }
+
+    fun sendPasswordReset(email: String) {
+        viewModelScope.launch {
+            _passwordResetState.value = Resource.Loading
+            _passwordResetState.value = authRepository.sendPasswordResetEmail(email)
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()
@@ -81,6 +111,7 @@ class AuthViewModel(
 
     fun resetAuthState() {
         _authState.value = null
+        _passwordResetState.value = null
     }
 }
 
@@ -427,7 +458,9 @@ class ViewModelFactory(
     private val adminRepo: FinancialAdminRepository? = null,
     private val publisherRepo: PublisherRepository? = null,
     private val pdfValidationService: PdfValidationService? = null,
-    private val reviewRepo: ReviewRepository? = null
+    private val reviewRepo: ReviewRepository? = null,
+    private val offlineBookRepo: OfflineBookRepository? = null,
+    private val application: Application? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -479,9 +512,24 @@ class ViewModelFactory(
                 if (reviewRepo != null) BookReviewsViewModel(reviewRepo, authRepo) as T
                 else throw IllegalArgumentException("ReviewRepository required")
             }
+            modelClass.isAssignableFrom(ReadingSessionViewModel::class.java) -> {
+                if (reviewRepo != null) ReadingSessionViewModel(reviewRepo, authRepo) as T
+                else throw IllegalArgumentException("ReviewRepository required")
+            }
             modelClass.isAssignableFrom(AdminReviewModerationViewModel::class.java) -> {
                 if (reviewRepo != null) AdminReviewModerationViewModel(reviewRepo, authRepo) as T
                 else throw IllegalArgumentException("ReviewRepository required")
+            }
+            modelClass.isAssignableFrom(OfflineReaderViewModel::class.java) -> {
+                if (offlineBookRepo != null) OfflineReaderViewModel(offlineBookRepo) as T
+                else throw IllegalArgumentException("OfflineBookRepository required")
+            }
+            modelClass.isAssignableFrom(VoiceConversationViewModel::class.java) -> {
+                if (application != null) VoiceConversationViewModel(application, bookRepo) as T
+                else throw IllegalArgumentException("Application context required for VoiceConversationViewModel")
+            }
+            modelClass.isAssignableFrom(BookScannerViewModel::class.java) -> {
+                BookScannerViewModel(bookRepo, wishlistRepo) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

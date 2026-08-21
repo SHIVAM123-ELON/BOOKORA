@@ -48,6 +48,8 @@ import com.example.presentation.screens.WishlistScreen
 import com.example.presentation.screens.financial.*
 import com.example.presentation.screens.publisher.*
 import com.example.presentation.screens.review.*
+import com.example.presentation.screens.scanner.BookScannerScreen
+import com.example.presentation.screens.voice.VoiceConversationScreen
 import com.example.presentation.viewmodel.AuthViewModel
 import com.example.presentation.viewmodel.BookDetailsViewModel
 import com.example.presentation.viewmodel.ExploreViewModel
@@ -56,8 +58,11 @@ import com.example.presentation.viewmodel.LibraryViewModel
 import com.example.presentation.viewmodel.ViewModelFactory
 import com.example.presentation.viewmodel.WishlistViewModel
 import com.example.presentation.viewmodel.financial.*
+import com.example.presentation.viewmodel.offline.OfflineReaderViewModel
 import com.example.presentation.viewmodel.publisher.*
 import com.example.presentation.viewmodel.review.*
+import com.example.presentation.viewmodel.scanner.BookScannerViewModel
+import com.example.presentation.viewmodel.voice.VoiceConversationViewModel
 import com.example.ui.theme.PolishBackground
 import com.example.ui.theme.PolishPrimaryContainer
 import com.example.ui.theme.PolishPrimaryIndigo
@@ -204,6 +209,12 @@ fun BookoraAppNavHost(
                     },
                     onNavigateToSubscriptions = {
                         navController.navigate(Screen.Subscriptions.route)
+                    },
+                    onNavigateToVoiceConversation = { bookId ->
+                        navController.navigate(Screen.VoiceConversation.createRoute(bookId))
+                    },
+                    onNavigateToScanner = {
+                        navController.navigate(Screen.BookScanner.route)
                     }
                 )
             }
@@ -213,6 +224,12 @@ fun BookoraAppNavHost(
                     exploreViewModel = exploreViewModel,
                     onNavigateToBookDetails = { bookId ->
                         navController.navigate(Screen.BookDetails.createRoute(bookId))
+                    },
+                    onNavigateToVoiceConversation = { bookId ->
+                        navController.navigate(Screen.VoiceConversation.createRoute(bookId))
+                    },
+                    onNavigateToScanner = {
+                        navController.navigate(Screen.BookScanner.route)
                     }
                 )
             }
@@ -237,6 +254,9 @@ fun BookoraAppNavHost(
                     },
                     onNavigateToExplore = {
                         navController.navigate(Screen.Explore.route)
+                    },
+                    onNavigateToScanner = {
+                        navController.navigate(Screen.BookScanner.route)
                     }
                 )
             }
@@ -255,6 +275,7 @@ fun BookoraAppNavHost(
                     onNavigateToCreatorEarnings = { navController.navigate(Screen.CreatorEarnings.route) },
                     onNavigateToMyUploads = { navController.navigate(Screen.MyUploads.route) },
                     onNavigateToAdminModeration = { navController.navigate(Screen.AdminModeration.route) },
+                    onNavigateToAdminReviewModeration = { navController.navigate(Screen.AdminReviewModeration.route) },
                     onNavigateToLogin = { navController.navigate(Screen.Login.route) }
                 )
             }
@@ -265,9 +286,11 @@ fun BookoraAppNavHost(
                 arguments = listOf(navArgument("bookId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val bookId = backStackEntry.arguments?.getString("bookId") ?: ""
+                val reviewsViewModel: BookReviewsViewModel = viewModel(factory = factory)
                 BookDetailsScreen(
                     bookId = bookId,
                     bookDetailsViewModel = bookDetailsViewModel,
+                    reviewsViewModel = reviewsViewModel,
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToReader = { id ->
                         navController.navigate(Screen.Reader.createRoute(id))
@@ -277,6 +300,9 @@ fun BookoraAppNavHost(
                     },
                     onNavigateToCart = {
                         navController.navigate(Screen.Cart.route)
+                    },
+                    onNavigateToVoiceConversation = { id ->
+                        navController.navigate(Screen.VoiceConversation.createRoute(id))
                     }
                 )
             }
@@ -287,10 +313,17 @@ fun BookoraAppNavHost(
                 arguments = listOf(navArgument("bookId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val bookId = backStackEntry.arguments?.getString("bookId") ?: ""
+                val readingSessionViewModel: ReadingSessionViewModel = viewModel(factory = factory)
+                val offlineReaderViewModel: OfflineReaderViewModel = viewModel(factory = factory)
                 ReaderScreen(
                     bookId = bookId,
                     bookDetailsViewModel = bookDetailsViewModel,
-                    onNavigateBack = { navController.popBackStack() }
+                    readingSessionViewModel = readingSessionViewModel,
+                    offlineReaderViewModel = offlineReaderViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToVoiceConversation = { id ->
+                        navController.navigate(Screen.VoiceConversation.createRoute(id))
+                    }
                 )
             }
 
@@ -367,6 +400,9 @@ fun BookoraAppNavHost(
                         navController.navigate(Screen.OrderHistory.route) {
                             popUpTo(Screen.Home.route)
                         }
+                    },
+                    onNavigateToReader = { bookId ->
+                        navController.navigate(Screen.Reader.createRoute(bookId))
                     }
                 )
             }
@@ -441,6 +477,47 @@ fun BookoraAppNavHost(
                 AdminModerationScreen(
                     viewModel = adminModerationViewModel,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Phase 9: Verified Reader & Trusted Reviews Moderation Center
+            composable(Screen.AdminReviewModeration.route) {
+                val adminReviewModerationViewModel: AdminReviewModerationViewModel = viewModel(factory = factory)
+                AdminReviewModerationScreen(
+                    viewModel = adminReviewModerationViewModel,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Gemini 3.1 Flash Live Real-Time Voice Conversation
+            composable(
+                route = Screen.VoiceConversation.route,
+                arguments = listOf(
+                    navArgument("bookId") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = ""
+                    }
+                )
+            ) { backStackEntry ->
+                val bookId = backStackEntry.arguments?.getString("bookId")
+                val voiceViewModel: VoiceConversationViewModel = viewModel(factory = factory)
+                VoiceConversationScreen(
+                    viewModel = voiceViewModel,
+                    bookId = if (bookId.isNullOrEmpty()) null else bookId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            // Phase 11: Barcode & QR Physical Book Scanner
+            composable(Screen.BookScanner.route) {
+                val scannerViewModel: BookScannerViewModel = viewModel(factory = factory)
+                BookScannerScreen(
+                    viewModel = scannerViewModel,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToBookDetails = { bookId ->
+                        navController.navigate(Screen.BookDetails.createRoute(bookId))
+                    }
                 )
             }
         }

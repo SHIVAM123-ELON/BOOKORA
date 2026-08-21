@@ -8,6 +8,9 @@ import androidx.room.Update
 import com.example.data.local.entity.review.*
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * DAO for managing Reader Verification lifecycle states.
+ */
 @Dao
 interface ReaderVerificationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -18,6 +21,9 @@ interface ReaderVerificationDao {
 
     @Query("SELECT * FROM reader_verifications WHERE userId = :userId AND bookId = :bookId LIMIT 1")
     suspend fun getVerificationDirect(userId: String, bookId: String): ReaderVerificationEntity?
+
+    @Query("SELECT * FROM reader_verifications WHERE userId = :userId ORDER BY updatedAt DESC")
+    fun getVerificationsForUser(userId: String): Flow<List<ReaderVerificationEntity>>
 
     @Query("UPDATE reader_verifications SET status = :status, isVerified = :isVerified, verificationReason = :reason, revokedAt = :revokedAt, updatedAt = :updatedAt WHERE userId = :userId AND bookId = :bookId")
     suspend fun updateStatus(
@@ -30,10 +36,58 @@ interface ReaderVerificationDao {
         updatedAt: Long = System.currentTimeMillis()
     )
 
-    @Query("SELECT * FROM reader_verifications WHERE bookId = :bookId AND isVerified = 1")
+    @Query("SELECT * FROM reader_verifications WHERE bookId = :bookId AND isVerified = 1 ORDER BY verifiedAt DESC")
     fun getVerifiedReadersForBook(bookId: String): Flow<List<ReaderVerificationEntity>>
+
+    @Query("SELECT * FROM reader_verifications WHERE bookId = :bookId AND isVerified = 1 ORDER BY verifiedAt DESC")
+    suspend fun getVerifiedReadersForBookDirect(bookId: String): List<ReaderVerificationEntity>
+
+    @Query("SELECT COUNT(*) FROM reader_verifications WHERE bookId = :bookId AND isVerified = 1")
+    fun getVerifiedReadersCountForBook(bookId: String): Flow<Int>
+
+    @Query("DELETE FROM reader_verifications WHERE userId = :userId AND bookId = :bookId")
+    suspend fun deleteVerification(userId: String, bookId: String)
 }
 
+/**
+ * DAO for managing individual granular Reading Sessions.
+ */
+@Dao
+interface ReadingSessionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(session: ReadingSessionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSessions(sessions: List<ReadingSessionEntity>)
+
+    @Query("SELECT * FROM reading_sessions WHERE userId = :userId AND bookId = :bookId ORDER BY startedAt DESC")
+    fun getSessions(userId: String, bookId: String): Flow<List<ReadingSessionEntity>>
+
+    @Query("SELECT * FROM reading_sessions WHERE userId = :userId AND bookId = :bookId ORDER BY startedAt DESC")
+    suspend fun getSessionsDirect(userId: String, bookId: String): List<ReadingSessionEntity>
+
+    @Query("SELECT * FROM reading_sessions WHERE userId = :userId ORDER BY startedAt DESC")
+    fun getSessionsForUser(userId: String): Flow<List<ReadingSessionEntity>>
+
+    @Query("SELECT * FROM reading_sessions WHERE userId = :userId AND bookId = :bookId ORDER BY startedAt DESC LIMIT 1")
+    fun getLatestSession(userId: String, bookId: String): Flow<ReadingSessionEntity?>
+
+    @Query("SELECT SUM(durationSeconds) FROM reading_sessions WHERE userId = :userId AND bookId = :bookId")
+    fun getTotalReadingSeconds(userId: String, bookId: String): Flow<Long?>
+
+    @Query("SELECT COUNT(*) FROM reading_sessions WHERE userId = :userId AND bookId = :bookId")
+    fun getSessionCount(userId: String, bookId: String): Flow<Int>
+
+    @Query("DELETE FROM reading_sessions WHERE id = :id")
+    suspend fun deleteSessionById(id: String)
+
+    @Query("DELETE FROM reading_sessions WHERE userId = :userId AND bookId = :bookId")
+    suspend fun deleteSessionsForBook(userId: String, bookId: String)
+}
+
+/**
+ * DAO for managing Reading Activity summaries.
+ */
 @Dao
 interface ReadingActivityDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -55,8 +109,11 @@ interface ReadingActivityDao {
     suspend fun getSessionsDirect(userId: String, bookId: String): List<ReadingSessionEntity>
 }
 
+/**
+ * DAO for managing Book Reviews and the complete review moderation/verification lifecycle.
+ */
 @Dao
-interface ReviewDao {
+interface BookReviewDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReview(review: BookReviewEntity)
 
@@ -65,6 +122,9 @@ interface ReviewDao {
 
     @Query("DELETE FROM book_reviews WHERE id = :id")
     suspend fun deleteReview(id: String)
+
+    @Query("DELETE FROM book_reviews WHERE userId = :userId AND bookId = :bookId")
+    suspend fun deleteUserReview(userId: String, bookId: String)
 
     @Query("SELECT * FROM book_reviews WHERE bookId = :bookId AND moderationStatus = 'PUBLISHED' ORDER BY createdAt DESC")
     fun getPublishedReviews(bookId: String): Flow<List<BookReviewEntity>>
@@ -82,10 +142,19 @@ interface ReviewDao {
     suspend fun getUserReviewDirect(userId: String, bookId: String): BookReviewEntity?
 
     @Query("SELECT * FROM book_reviews WHERE id = :id LIMIT 1")
+    fun getReviewById(id: String): Flow<BookReviewEntity?>
+
+    @Query("SELECT * FROM book_reviews WHERE id = :id LIMIT 1")
     suspend fun getReviewByIdDirect(id: String): BookReviewEntity?
+
+    @Query("SELECT * FROM book_reviews WHERE userId = :userId ORDER BY createdAt DESC")
+    fun getUserReviews(userId: String): Flow<List<BookReviewEntity>>
 
     @Query("SELECT * FROM book_reviews ORDER BY createdAt DESC")
     fun getAllReviewsForModeration(): Flow<List<BookReviewEntity>>
+
+    @Query("SELECT * FROM book_reviews WHERE moderationStatus = :status ORDER BY createdAt DESC")
+    fun getReviewsByModerationStatus(status: String): Flow<List<BookReviewEntity>>
 
     @Query("UPDATE book_reviews SET moderationStatus = :status, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateModerationStatus(id: String, status: String, updatedAt: Long = System.currentTimeMillis())
@@ -102,6 +171,11 @@ interface ReviewDao {
     @Query("UPDATE book_reviews SET authorReply = :reply, authorRepliedAt = :repliedAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun addAuthorReply(id: String, reply: String, repliedAt: Long = System.currentTimeMillis(), updatedAt: Long = System.currentTimeMillis())
 }
+
+/**
+ * Backward-compatible alias for BookReviewDao.
+ */
+typealias ReviewDao = BookReviewDao
 
 @Dao
 interface ReviewHelpfulVoteDao {
@@ -158,3 +232,4 @@ interface ReviewAuditDao {
     @Query("SELECT * FROM review_audits ORDER BY timestamp DESC")
     fun getAllAudits(): Flow<List<ReviewAuditEntity>>
 }
+

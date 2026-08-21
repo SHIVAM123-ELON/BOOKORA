@@ -17,6 +17,16 @@ interface ReviewRepository {
     fun getReaderVerification(userId: String, bookId: String): Flow<ReaderVerification?>
 
     /**
+     * Streams the aggregate reading activity for a user and book.
+     */
+    fun getReadingActivity(userId: String, bookId: String): Flow<ReadingActivity?>
+
+    /**
+     * Streams individual reading sessions for a user and book.
+     */
+    fun getReadingSessions(userId: String, bookId: String): Flow<List<ReadingSession>>
+
+    /**
      * Records a granular reading session, updating reading activity, progress, and re-evaluating verification eligibility.
      */
     suspend fun recordReadingSession(

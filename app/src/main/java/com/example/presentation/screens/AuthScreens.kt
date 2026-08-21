@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -234,6 +235,26 @@ fun LoginScreen(
                 }
             }
 
+            val context = LocalContext.current
+
+            // Google Sign-In with Credential Manager
+            androidx.compose.material3.OutlinedButton(
+                onClick = { viewModel.signInWithGoogle(context) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("google_signin_button"),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, PolishSlate200),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+            ) {
+                Text(
+                    text = "Sign in with Google",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = PolishSlate900
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Error display
@@ -415,6 +436,26 @@ fun RegisterScreen(
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                     )
                 }
+            }
+
+            val context = LocalContext.current
+
+            // Google Sign-In with Credential Manager
+            androidx.compose.material3.OutlinedButton(
+                onClick = { viewModel.signInWithGoogle(context) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("google_signup_button"),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, PolishSlate200),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+            ) {
+                Text(
+                    text = "Sign up with Google",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = PolishSlate900
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

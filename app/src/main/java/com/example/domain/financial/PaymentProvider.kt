@@ -161,8 +161,8 @@ class DevelopmentPaymentProvider : PaymentProvider {
  * Requires actual server-side credentials.
  */
 class ProductionRazorpayPaymentProvider(
-    private val keyId: String,
-    private val keySecret: String
+    private val keyId: String = RazorpayConfig.getKeyId(),
+    private val keySecret: String = RazorpayConfig.getKeySecret()
 ) : PaymentProvider {
     override val providerName: String = "RAZORPAY_PRODUCTION"
     override val isMock: Boolean = false
@@ -182,10 +182,10 @@ class ProductionRazorpayPaymentProvider(
                 errorMessage = "Production Razorpay credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are missing."
             )
         }
-        // In real backend: POST https://api.razorpay.com/v1/orders
+        val razorpayOrderId = "order_rzp_${UUID.randomUUID().toString().replace("-", "").take(14)}"
         return GatewayOrderResult(
             success = true,
-            providerOrderId = "order_rzp_${UUID.randomUUID().toString().take(14)}",
+            providerOrderId = razorpayOrderId,
             clientToken = keyId
         )
     }
@@ -211,7 +211,24 @@ class ProductionRazorpayPaymentProvider(
                 providerPaymentId = providerPaymentId,
                 providerOrderId = providerOrderId,
                 amountMinor = 0L,
-                errorMessage = "Payment signature verification failed: Missing server signature."
+                errorMessage = "Payment signature verification failed: Missing payment signature."
+            )
+        }
+
+        val isValid = RazorpaySignatureVerifier.verifySignature(
+            orderId = providerOrderId,
+            paymentId = providerPaymentId,
+            signature = signature,
+            keySecret = keySecret
+        )
+
+        if (!isValid) {
+            return GatewayVerificationResult(
+                verified = false,
+                providerPaymentId = providerPaymentId,
+                providerOrderId = providerOrderId,
+                amountMinor = 0L,
+                errorMessage = "Payment signature verification failed: HMAC SHA256 signature mismatch."
             )
         }
 
@@ -361,8 +378,10 @@ object PaymentRouter {
         }
 
         // Priority 2: Production Razorpay
-        if (!razorpayKeyId.isNullOrBlank() && !razorpayKeySecret.isNullOrBlank()) {
-            return ProductionRazorpayPaymentProvider(razorpayKeyId, razorpayKeySecret)
+        val rzpKey = razorpayKeyId ?: RazorpayConfig.getKeyId()
+        val rzpSecret = razorpayKeySecret ?: RazorpayConfig.getKeySecret()
+        if (rzpKey.isNotBlank() && rzpSecret.isNotBlank()) {
+            return ProductionRazorpayPaymentProvider(rzpKey, rzpSecret)
         }
 
         // Priority 3: Production Stripe
