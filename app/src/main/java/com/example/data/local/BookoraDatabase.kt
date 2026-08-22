@@ -72,6 +72,7 @@ import com.example.data.local.entity.review.*
         FinancialAuditLogEntity::class,
         RiskEventEntity::class,
         MarketplaceSettingsEntity::class,
+        PaymentLinkEntity::class,
         BookSubmissionEntity::class,
         CreatorBalanceEntity::class,
         CreatorTransactionEntity::class,
@@ -87,7 +88,7 @@ import com.example.data.local.entity.review.*
         CachedBookContentEntity::class,
         CachedChapterEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class BookoraDatabase : RoomDatabase() {
@@ -121,6 +122,7 @@ abstract class BookoraDatabase : RoomDatabase() {
     abstract fun financialAuditLogDao(): FinancialAuditLogDao
     abstract fun riskEventDao(): RiskEventDao
     abstract fun marketplaceSettingsDao(): MarketplaceSettingsDao
+    abstract fun paymentLinkDao(): PaymentLinkDao
 
     // Phase 8 Open Publisher DAOs
     abstract fun bookSubmissionDao(): BookSubmissionDao

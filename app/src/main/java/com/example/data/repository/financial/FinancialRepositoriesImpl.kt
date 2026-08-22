@@ -1412,3 +1412,77 @@ class FinancialAdminRepositoryImpl(
         return database.riskEventDao().getRecentRiskEvents().map { events -> events.map { it.toDomain() } }
     }
 }
+
+/**
+ * ============================================================================
+ * PAYMENT LINK REPOSITORY IMPLEMENTATION
+ * ============================================================================
+ * Manages Razorpay Payment Links with WhatsApp, SMS, Email, and direct delivery.
+ */
+class PaymentLinkRepositoryImpl(
+    private val database: BookoraDatabase,
+    private val razorpayBackendService: RazorpayBackendService
+) : PaymentLinkRepository {
+
+    override fun getAllPaymentLinks(): Flow<List<PaymentLink>> {
+        return database.paymentLinkDao().getAllPaymentLinks().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun getPaymentLinksByUser(userId: String): Flow<List<PaymentLink>> {
+        return database.paymentLinkDao().getPaymentLinksByUserId(userId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun getPaymentLinkById(id: String): Flow<PaymentLink?> {
+        return database.paymentLinkDao().getPaymentLinkById(id).map { it?.toDomain() }
+    }
+
+    override suspend fun createPaymentLink(
+        userId: String,
+        bookIds: List<String>,
+        deliveryMethod: PaymentLinkDeliveryMethod,
+        customerName: String?,
+        customerEmail: String?,
+        customerPhone: String?,
+        couponCode: String?
+    ): Resource<RazorpayBackendService.CreatePaymentLinkResponse> {
+        return razorpayBackendService.createPaymentLink(
+            RazorpayBackendService.CreatePaymentLinkRequest(
+                userId = userId,
+                bookIds = bookIds,
+                deliveryMethod = deliveryMethod,
+                customerName = customerName,
+                customerEmail = customerEmail,
+                customerPhone = customerPhone,
+                couponCode = couponCode
+            )
+        )
+    }
+
+    override suspend fun resendPaymentLink(
+        paymentLinkId: String,
+        deliveryMethod: PaymentLinkDeliveryMethod
+    ): Resource<RazorpayBackendService.CreatePaymentLinkResponse> {
+        return razorpayBackendService.resendPaymentLink(paymentLinkId, deliveryMethod)
+    }
+
+    override suspend fun cancelPaymentLink(paymentLinkId: String): Resource<Boolean> {
+        return razorpayBackendService.cancelPaymentLink(paymentLinkId)
+    }
+
+    override suspend fun verifyAndSettlePaymentLink(
+        paymentLinkId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String
+    ): Resource<RazorpayBackendService.VerifyPaymentResponse> {
+        return razorpayBackendService.verifyAndSettlePaymentLink(
+            paymentLinkId = paymentLinkId,
+            razorpayPaymentId = razorpayPaymentId,
+            razorpaySignature = razorpaySignature
+        )
+    }
+}
+

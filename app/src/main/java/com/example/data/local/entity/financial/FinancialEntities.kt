@@ -476,3 +476,43 @@ data class MarketplaceSettingsEntity(
         updatedAt = updatedAt
     )
 }
+
+@Entity(tableName = "payment_links")
+data class PaymentLinkEntity(
+    @PrimaryKey val id: String,
+    val userId: String,
+    val orderId: String,
+    val razorpayPaymentLinkId: String,
+    val paymentLinkUrl: String,
+    val amountMinor: Long,
+    val currency: String = "INR",
+    val status: String = "CREATED",
+    val deliveryMethod: String = "COPY_LINK",
+    val customerName: String = "",
+    val customerEmail: String = "",
+    val customerPhone: String = "",
+    val booksSummary: String = "",
+    val expiresAt: Long = System.currentTimeMillis() + (72 * 60 * 60 * 1000L),
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+) {
+    fun toDomain(): PaymentLink = PaymentLink(
+        id = id,
+        userId = userId,
+        orderId = orderId,
+        razorpayPaymentLinkId = razorpayPaymentLinkId,
+        paymentLinkUrl = paymentLinkUrl,
+        amountMinor = amountMinor,
+        currency = currency,
+        status = try { PaymentLinkStatus.valueOf(status) } catch (e: Exception) { PaymentLinkStatus.CREATED },
+        deliveryMethod = try { PaymentLinkDeliveryMethod.valueOf(deliveryMethod) } catch (e: Exception) { PaymentLinkDeliveryMethod.COPY_LINK },
+        customerName = customerName,
+        customerEmail = customerEmail,
+        customerPhone = customerPhone,
+        booksSummary = booksSummary,
+        expiresAt = expiresAt,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+

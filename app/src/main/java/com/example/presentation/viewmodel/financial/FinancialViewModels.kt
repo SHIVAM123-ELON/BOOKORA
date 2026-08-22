@@ -3,11 +3,13 @@ package com.example.presentation.viewmodel.financial
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.core.result.Resource
+import com.example.domain.financial.RazorpayBackendService
 import com.example.domain.financial.RazorpayConfig
 import com.example.domain.financial.RazorpaySignatureVerifier
 import com.example.domain.model.financial.*
 import com.example.domain.repository.AuthRepository
 import com.example.domain.repository.financial.*
+
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -150,6 +152,10 @@ data class CheckoutUiState(
     val paymentSuccess: Boolean = false,
     val isDevPaymentModalOpen: Boolean = false,
     val isRazorpaySheetOpen: Boolean = false,
+    val isPaymentLinkSheetOpen: Boolean = false,
+    val isGeneratingPaymentLink: Boolean = false,
+    val paymentLinkResponse: RazorpayBackendService.CreatePaymentLinkResponse? = null,
+    val paymentLinkError: String? = null,
     val isMockMode: Boolean = false,
     val completedPaymentId: String? = null,
     val errorMessage: String? = null
@@ -158,11 +164,13 @@ data class CheckoutUiState(
 class CheckoutViewModel(
     private val orderRepository: OrderRepository,
     private val paymentRepository: PaymentRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val paymentLinkRepository: PaymentLinkRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CheckoutUiState(isMockMode = paymentRepository.isMockMode()))
     val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
+
 
     fun prepareBuyNowOrder(bookId: String, couponCode: String? = null) {
         viewModelScope.launch {
@@ -418,7 +426,98 @@ class CheckoutViewModel(
         }
     }
 
+    fun openPaymentLinkSheet() {
+        _uiState.update { it.copy(isPaymentLinkSheetOpen = true, paymentLinkError = null) }
+    }
+
+    fun closePaymentLinkSheet() {
+        _uiState.update { it.copy(isPaymentLinkSheetOpen = false) }
+    }
+
+    fun generatePaymentLink(
+        method: PaymentLinkDeliveryMethod,
+        customerName: String,
+        customerEmail: String,
+        customerPhone: String,
+        expiryHours: Int = 24
+    ) {
+        val order = _uiState.value.order ?: return
+        val repo = paymentLinkRepository ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGeneratingPaymentLink = true, paymentLinkError = null) }
+            val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
+            val bookIds = order.items.map { it.bookId }
+
+            when (val res = repo.createPaymentLink(
+                userId = userId,
+                bookIds = bookIds,
+                deliveryMethod = method,
+                customerName = customerName,
+                customerEmail = customerEmail,
+                customerPhone = customerPhone,
+                couponCode = null
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingPaymentLink = false,
+                            paymentLinkResponse = res.data,
+                            paymentLinkError = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingPaymentLink = false,
+                            paymentLinkError = res.message
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun simulatePaymentLinkPaid(paymentLinkId: String) {
+        val repo = paymentLinkRepository ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isProcessingPayment = true, errorMessage = null) }
+            val fakeRzpPaymentId = "pay_link_${System.currentTimeMillis()}"
+
+            when (val res = repo.verifyAndSettlePaymentLink(
+                paymentLinkId = paymentLinkId,
+                razorpayPaymentId = fakeRzpPaymentId,
+                razorpaySignature = ""
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            isPaymentLinkSheetOpen = false,
+                            paymentSuccess = true,
+                            completedPaymentId = fakeRzpPaymentId,
+                            errorMessage = null
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentLinkError = res.message
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
     fun resetState() {
+
         _uiState.value = CheckoutUiState(isMockMode = paymentRepository.isMockMode())
     }
 }
@@ -681,6 +780,7 @@ class AuthorEarningsViewModel(
 
 enum class AdminFinanceTab {
     OVERVIEW,
+    PAYMENT_LINKS,
     PAYOUTS,
     REFUNDS,
     COUPONS,
@@ -692,6 +792,7 @@ data class AdminFinancialUiState(
     val metrics: PlatformFinancialMetrics? = null,
     val settings: MarketplaceSettings = MarketplaceSettings(),
     val recentOrders: List<Order> = emptyList(),
+    val paymentLinks: List<PaymentLink> = emptyList(),
     val payoutRequests: List<PayoutRequest> = emptyList(),
     val refunds: List<Refund> = emptyList(),
     val auditLogs: List<FinancialAuditLog> = emptyList(),
@@ -706,7 +807,8 @@ class AdminFinancialViewModel(
     private val adminRepository: FinancialAdminRepository,
     private val payoutRepository: PayoutRepository,
     private val refundRepository: RefundRepository,
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val paymentLinkRepository: PaymentLinkRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminFinancialUiState(isLoading = true))
@@ -734,6 +836,11 @@ class AdminFinancialViewModel(
                 }
             }
             launch {
+                paymentLinkRepository?.getAllPaymentLinks()?.collect { links ->
+                    _uiState.update { it.copy(paymentLinks = links) }
+                }
+            }
+            launch {
                 payoutRepository.getAllPayoutRequests().collect { p ->
                     _uiState.update { it.copy(payoutRequests = p) }
                 }
@@ -758,6 +865,36 @@ class AdminFinancialViewModel(
 
     fun setTab(tab: AdminFinanceTab) {
         _uiState.update { it.copy(activeTab = tab) }
+    }
+
+    fun resendPaymentLink(linkId: String, method: PaymentLinkDeliveryMethod) {
+        val repo = paymentLinkRepository ?: return
+        viewModelScope.launch {
+            when (val res = repo.resendPaymentLink(linkId, method)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(successMessage = "Payment link updated and resent via ${method.name}") }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(errorMessage = res.message) }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun cancelPaymentLink(linkId: String) {
+        val repo = paymentLinkRepository ?: return
+        viewModelScope.launch {
+            when (val res = repo.cancelPaymentLink(linkId)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(successMessage = "Payment link cancelled successfully.") }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(errorMessage = res.message) }
+                }
+                else -> {}
+            }
+        }
     }
 
     fun approvePayout(payoutId: String) {
@@ -816,3 +953,98 @@ class AdminFinancialViewModel(
         _uiState.update { it.copy(successMessage = null, errorMessage = null) }
     }
 }
+
+// ============================================================================
+// PAYMENT LINK VIEW MODEL (STANDALONE)
+// ============================================================================
+
+data class PaymentLinkUiState(
+    val userLinks: List<PaymentLink> = emptyList(),
+    val isCreating: Boolean = false,
+    val createdResponse: RazorpayBackendService.CreatePaymentLinkResponse? = null,
+    val successMessage: String? = null,
+    val errorMessage: String? = null
+)
+
+class PaymentLinkViewModel(
+    private val paymentLinkRepository: PaymentLinkRepository,
+    private val authRepository: AuthRepository
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(PaymentLinkUiState())
+    val uiState: StateFlow<PaymentLinkUiState> = _uiState.asStateFlow()
+
+    init {
+        loadUserLinks()
+    }
+
+    fun loadUserLinks() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
+            paymentLinkRepository.getPaymentLinksByUser(userId).collect { links ->
+                _uiState.update { it.copy(userLinks = links) }
+            }
+        }
+    }
+
+    fun createPaymentLink(
+        bookIds: List<String>,
+        deliveryMethod: PaymentLinkDeliveryMethod,
+        customerName: String? = null,
+        customerEmail: String? = null,
+        customerPhone: String? = null,
+        couponCode: String? = null
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCreating = true, errorMessage = null) }
+            val userId = authRepository.getCurrentUser().first()?.id ?: "u-default-reader-001"
+            when (val res = paymentLinkRepository.createPaymentLink(
+                userId = userId,
+                bookIds = bookIds,
+                deliveryMethod = deliveryMethod,
+                customerName = customerName,
+                customerEmail = customerEmail,
+                customerPhone = customerPhone,
+                couponCode = couponCode
+            )) {
+                is Resource.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isCreating = false,
+                            createdResponse = res.data,
+                            successMessage = "Razorpay Payment Link generated successfully!"
+                        )
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isCreating = false,
+                            errorMessage = res.message
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun cancelPaymentLink(paymentLinkId: String) {
+        viewModelScope.launch {
+            when (val res = paymentLinkRepository.cancelPaymentLink(paymentLinkId)) {
+                is Resource.Success -> {
+                    _uiState.update { it.copy(successMessage = "Payment link cancelled.") }
+                }
+                is Resource.Error -> {
+                    _uiState.update { it.copy(errorMessage = res.message) }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    fun clearMessages() {
+        _uiState.update { it.copy(successMessage = null, errorMessage = null) }
+    }
+}
+

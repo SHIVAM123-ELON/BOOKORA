@@ -497,3 +497,49 @@ data class TaxRule(
     val effectiveTo: Long = Long.MAX_VALUE,
     val status: String = "ACTIVE"
 )
+
+// -------------------------------------------------------------
+// PAYMENT LINKS (WHATSAPP, SMS, EMAIL, DIRECT)
+// -------------------------------------------------------------
+
+enum class PaymentLinkStatus {
+    CREATED,
+    SENT,
+    PAID,
+    EXPIRED,
+    CANCELLED,
+    FAILED
+}
+
+enum class PaymentLinkDeliveryMethod {
+    WHATSAPP,
+    SMS,
+    EMAIL,
+    COPY_LINK,
+    DIRECT_LINK
+}
+
+data class PaymentLink(
+    val id: String,
+    val userId: String,
+    val orderId: String,
+    val razorpayPaymentLinkId: String,
+    val paymentLinkUrl: String,
+    val amountMinor: Long,
+    val currency: String = "INR",
+    val status: PaymentLinkStatus = PaymentLinkStatus.CREATED,
+    val deliveryMethod: PaymentLinkDeliveryMethod = PaymentLinkDeliveryMethod.COPY_LINK,
+    val customerName: String = "",
+    val customerEmail: String = "",
+    val customerPhone: String = "",
+    val booksSummary: String = "",
+    val expiresAt: Long = System.currentTimeMillis() + (72 * 60 * 60 * 1000L), // 72 hours
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+) {
+    val amountMoney: Money get() = Money(amountMinor, currency)
+    val amountMajor: Double get() = amountMinor / 100.0
+    val isExpired: Boolean get() = status != PaymentLinkStatus.PAID && System.currentTimeMillis() > expiresAt
+}
+
+

@@ -1,5 +1,12 @@
 package com.example.presentation.screens.financial
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -16,11 +23,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.domain.financial.RazorpayConfig
 import com.example.domain.model.financial.Money
+import com.example.domain.model.financial.PaymentLinkDeliveryMethod
+import com.example.domain.model.financial.PaymentLinkStatus
 import com.example.presentation.viewmodel.financial.AdminFinanceTab
 import com.example.presentation.viewmodel.financial.AdminFinancialViewModel
 import java.text.SimpleDateFormat
@@ -97,7 +108,15 @@ fun AdminFinancialScreen(
                 AdminFinanceTab.OVERVIEW -> {
                     AdminOverviewContent(state = state)
                 }
+                AdminFinanceTab.PAYMENT_LINKS -> {
+                    AdminPaymentLinksContent(
+                        state = state,
+                        onResend = { linkId, method -> viewModel.resendPaymentLink(linkId, method) },
+                        onCancel = { linkId -> viewModel.cancelPaymentLink(linkId) }
+                    )
+                }
                 AdminFinanceTab.PAYOUTS -> {
+
                     AdminPayoutsContent(
                         state = state,
                         onApprove = { viewModel.approvePayout(it) },
@@ -396,6 +415,8 @@ private fun AdminSettingsContent(
     state: com.example.presentation.viewmodel.financial.AdminFinancialUiState,
     onUpdateCommission: (Double) -> Unit
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -403,6 +424,113 @@ private fun AdminSettingsContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text("Marketplace Economics & Commission", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+        // Razorpay.me Gateway Merchant Card
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.5.dp, Color(0xFF00BAF2), RoundedCornerShape(14.dp))
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF0C2340),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("R", color = Color(0xFF00BAF2), fontWeight = FontWeight.Black, fontSize = 16.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Official Razorpay.me Gateway", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                            Text(RazorpayConfig.RAZORPAY_ME_HANDLE, style = MaterialTheme.typography.labelSmall, color = Color(0xFF007799), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color(0xFF16A34A).copy(alpha = 0.15f)
+                    ) {
+                        Text("LIVE", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), color = Color(0xFF16A34A), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            RazorpayConfig.RAZORPAY_ME_PAGE_URL,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0284C7),
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Razorpay.me URL", RazorpayConfig.RAZORPAY_ME_PAGE_URL)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Copied Razorpay.me URL!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(RazorpayConfig.RAZORPAY_ME_PAGE_URL))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFF00BAF2))
+                    ) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Open Page", fontSize = 11.sp, color = Color(0xFF00BAF2), fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Razorpay VPA", RazorpayConfig.RAZORPAY_ME_UPI_VPA)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copied UPI VPA: ${RazorpayConfig.RAZORPAY_ME_UPI_VPA}", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color(0xFF00BAF2))
+                    ) {
+                        Icon(Icons.Default.AlternateEmail, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Copy UPI VPA", fontSize = 11.sp, color = Color(0xFF00BAF2), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
 
         Card(
             shape = RoundedCornerShape(14.dp),
@@ -454,6 +582,173 @@ private fun AdminSettingsContent(
 }
 
 @Composable
+private fun AdminPaymentLinksContent(
+    state: com.example.presentation.viewmodel.financial.AdminFinancialUiState,
+    onResend: (linkId: String, method: PaymentLinkDeliveryMethod) -> Unit,
+    onCancel: (linkId: String) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Razorpay Payment Links (${state.paymentLinks.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        if (state.paymentLinks.isEmpty()) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.padding(32.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.LinkOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(36.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("No Razorpay Payment Links generated yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        } else {
+            items(state.paymentLinks, key = { it.id }) { link ->
+                val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(link.createdAt))
+                val isPaid = link.status == PaymentLinkStatus.PAID
+                val isCancelled = link.status == PaymentLinkStatus.CANCELLED
+                val isExpired = link.status == PaymentLinkStatus.EXPIRED
+
+                Card(
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            1.dp,
+                            if (isPaid) Color(0xFF16A34A) else MaterialTheme.colorScheme.outlineVariant,
+                            RoundedCornerShape(14.dp)
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    link.customerName ?: "Customer",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    "Channel: ${link.deliveryMethod.name} • $dateStr",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = when {
+                                    isPaid -> Color(0xFF16A34A).copy(alpha = 0.15f)
+                                    isCancelled -> MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                                    isExpired -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+                                    else -> Color(0xFF00BAF2).copy(alpha = 0.15f)
+                                }
+                            ) {
+                                Text(
+                                    link.status.name,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = when {
+                                        isPaid -> Color(0xFF16A34A)
+                                        isCancelled -> MaterialTheme.colorScheme.error
+                                        isExpired -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        else -> Color(0xFF00BAF2)
+                                    },
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Order ID: ${link.orderId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("RZP Link ID: ${link.razorpayPaymentLinkId}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (link.customerPhone != null) {
+                                    Text("Phone: ${link.customerPhone}", style = MaterialTheme.typography.labelSmall)
+                                }
+                                if (link.customerEmail != null) {
+                                    Text("Email: ${link.customerEmail}", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Total", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    link.amountMoney.formatted,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        if (!isPaid && !isCancelled && !isExpired) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { onResend(link.id, link.deliveryMethod) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2)),
+                                    modifier = Modifier.weight(1f).height(38.dp)
+                                ) {
+                                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Resend", fontSize = 12.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = { onCancel(link.id) },
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f).height(38.dp)
+                                ) {
+                                    Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Cancel", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AdminAuditLogsContent(state: com.example.presentation.viewmodel.financial.AdminFinancialUiState) {
     LazyColumn(
         modifier = Modifier
@@ -484,3 +779,5 @@ private fun AdminAuditLogsContent(state: com.example.presentation.viewmodel.fina
         }
     }
 }
+
+

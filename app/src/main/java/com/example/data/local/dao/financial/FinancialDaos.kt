@@ -298,3 +298,40 @@ interface MarketplaceSettingsDao {
     @Query("SELECT * FROM marketplace_settings WHERE id = 'default_settings' LIMIT 1")
     suspend fun getSettingsDirect(): MarketplaceSettingsEntity?
 }
+
+@Dao
+interface PaymentLinkDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPaymentLink(link: PaymentLinkEntity)
+
+    @Update
+    suspend fun updatePaymentLink(link: PaymentLinkEntity)
+
+    @Query("SELECT * FROM payment_links WHERE id = :id LIMIT 1")
+    fun getPaymentLinkById(id: String): Flow<PaymentLinkEntity?>
+
+    @Query("SELECT * FROM payment_links WHERE id = :id LIMIT 1")
+    suspend fun getPaymentLinkByIdDirect(id: String): PaymentLinkEntity?
+
+    @Query("SELECT * FROM payment_links WHERE razorpayPaymentLinkId = :razorpayPaymentLinkId LIMIT 1")
+    suspend fun getPaymentLinkByRazorpayIdDirect(razorpayPaymentLinkId: String): PaymentLinkEntity?
+
+    @Query("SELECT * FROM payment_links WHERE orderId = :orderId LIMIT 1")
+    suspend fun getPaymentLinkByOrderIdDirect(orderId: String): PaymentLinkEntity?
+
+    @Query("SELECT * FROM payment_links ORDER BY createdAt DESC")
+    fun getAllPaymentLinks(): Flow<List<PaymentLinkEntity>>
+
+    @Query("SELECT * FROM payment_links ORDER BY createdAt DESC")
+    suspend fun getAllPaymentLinksDirect(): List<PaymentLinkEntity>
+
+    @Query("SELECT * FROM payment_links WHERE userId = :userId ORDER BY createdAt DESC")
+    fun getPaymentLinksByUserId(userId: String): Flow<List<PaymentLinkEntity>>
+
+    @Query("UPDATE payment_links SET status = :status, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updatePaymentLinkStatus(id: String, status: String, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE payment_links SET status = :status, updatedAt = :updatedAt WHERE razorpayPaymentLinkId = :razorpayPaymentLinkId")
+    suspend fun updatePaymentLinkStatusByRazorpayId(razorpayPaymentLinkId: String, status: String, updatedAt: Long = System.currentTimeMillis())
+}
+

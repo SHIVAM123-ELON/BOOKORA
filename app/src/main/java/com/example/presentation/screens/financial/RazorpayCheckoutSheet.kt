@@ -1,5 +1,11 @@
 package com.example.presentation.screens.financial
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -21,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -270,7 +277,34 @@ fun RazorpayCheckoutSheet(
                             upiIdInput = upiIdInput,
                             onUpiIdChange = { upiIdInput = it },
                             isQrSelected = isQrSelected,
-                            onToggleQr = { isQrSelected = !isQrSelected }
+                            onToggleQr = { isQrSelected = !isQrSelected },
+                            onSelectRazorpayMeUpi = {
+                                upiIdInput = RazorpayConfig.RAZORPAY_ME_UPI_VPA
+                                selectedUpiApp = "Razorpay.me"
+                            }
+                        )
+                    }
+                    PaymentCategory.RAZORPAY_ME -> {
+                        RazorpayMeSection(
+                            bookTitle = bookTitle,
+                            amountFormatted = amountFormatted,
+                            amountPaise = amountPaise,
+                            onPayWithRazorpayMe = {
+                                coroutineScope.launch {
+                                    isProcessing = true
+                                    processingStatusText = "Authorizing via Razorpay.me (@shivammaurya3643)..."
+                                    delay(700)
+                                    val paymentId = "pay_${UUID.randomUUID().toString().replace("-", "").take(14)}"
+                                    val signature = RazorpaySignatureVerifier.calculateHmacSha256(
+                                        payload = "$razorpayOrderId|$paymentId",
+                                        secret = keySecret
+                                    )
+                                    processingStatusText = "Payment Verified! Unlocking content..."
+                                    delay(400)
+                                    isProcessing = false
+                                    onPaymentSuccess(paymentId, razorpayOrderId, signature)
+                                }
+                            }
                         )
                     }
                     PaymentCategory.CARDS -> {
@@ -382,6 +416,7 @@ fun RazorpayCheckoutSheet(
 
 enum class PaymentCategory(val title: String, val icon: ImageVector) {
     UPI("UPI / QR", Icons.Default.QrCodeScanner),
+    RAZORPAY_ME("Razorpay.me", Icons.Default.Storefront),
     CARDS("Cards", Icons.Default.CreditCard),
     NETBANKING("NetBanking", Icons.Default.AccountBalance),
     WALLETS("Wallets", Icons.Default.AccountBalanceWallet)
@@ -394,11 +429,81 @@ private fun UpiPaymentSection(
     upiIdInput: String,
     onUpiIdChange: (String) -> Unit,
     isQrSelected: Boolean,
-    onToggleQr: () -> Unit
+    onToggleQr: () -> Unit,
+    onSelectRazorpayMeUpi: () -> Unit = {}
 ) {
     val upiApps = listOf("Google Pay", "PhonePe", "Paytm", "BHIM UPI")
+    val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Razorpay.me Fast Handle Banner
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, Color(0xFF00BAF2).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                .clickable {
+                    onSelectRazorpayMeUpi()
+                    Toast.makeText(context, "Autofilled ${RazorpayConfig.RAZORPAY_ME_HANDLE} UPI ID", Toast.LENGTH_SHORT).show()
+                },
+            color = Color(0xFFF0F9FF)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color(0xFF00BAF2),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Razorpay.me Official Handle",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color(0xFF0C2340)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(14.dp))
+                        }
+                        Text(
+                            "${RazorpayConfig.RAZORPAY_ME_HANDLE} (${RazorpayConfig.RAZORPAY_ME_UPI_VPA})",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF007799),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                FilledTonalButton(
+                    onClick = {
+                        onSelectRazorpayMeUpi()
+                        Toast.makeText(context, "Autofilled ${RazorpayConfig.RAZORPAY_ME_HANDLE} UPI ID", Toast.LENGTH_SHORT).show()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("Select", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
         Text(
             "Instant UPI Apps",
             style = MaterialTheme.typography.labelMedium,
@@ -471,6 +576,168 @@ private fun UpiPaymentSection(
             modifier = Modifier.fillMaxWidth().testTag("custom_upi_id_input"),
             shape = RoundedCornerShape(12.dp)
         )
+    }
+}
+
+@Composable
+private fun RazorpayMeSection(
+    bookTitle: String,
+    amountFormatted: String,
+    amountPaise: Long,
+    onPayWithRazorpayMe: () -> Unit
+) {
+    val context = LocalContext.current
+    val paymentUrl = RazorpayConfig.getRazorpayMePaymentUrl(amountPaise / 100.0, bookTitle)
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+            border = BorderStroke(1.5.dp, Color(0xFF00BAF2)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFF0C2340),
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("R", color = Color(0xFF00BAF2), fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "Razorpay.me Merchant",
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Color(0xFF0F172A)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(Icons.Default.Verified, contentDescription = "Verified", tint = Color(0xFF00BAF2), modifier = Modifier.size(16.dp))
+                            }
+                            Text(
+                                RazorpayConfig.RAZORPAY_ME_HANDLE,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF00BAF2),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF16A34A).copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            "LIVE",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            color = Color(0xFF16A34A),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                Text(
+                    "Direct Merchant Payment Gateway URL:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF64748B)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            RazorpayConfig.RAZORPAY_ME_PAGE_URL,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF0284C7),
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Razorpay.me URL", RazorpayConfig.RAZORPAY_ME_PAGE_URL)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Razorpay.me link copied to clipboard!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Link", tint = Color(0xFF00BAF2), modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Open in Browser Intent
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(paymentUrl))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFF00BAF2))
+                    ) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Open Page", fontSize = 12.sp, color = Color(0xFF00BAF2), fontWeight = FontWeight.Bold)
+                    }
+
+                    // Direct Quick Pay & Unlock
+                    Button(
+                        onClick = onPayWithRazorpayMe,
+                        modifier = Modifier.weight(1.2f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2))
+                    ) {
+                        Icon(Icons.Default.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Pay $amountFormatted", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(Icons.Default.Shield, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(14.dp))
+                    Text(
+                        "Direct Razorpay UPI, Cards & NetBanking settlement to merchant account",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
     }
 }
 

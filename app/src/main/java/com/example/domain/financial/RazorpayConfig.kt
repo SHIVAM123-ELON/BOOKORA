@@ -15,6 +15,26 @@ object RazorpayConfig {
     const val DEFAULT_TEST_KEY_ID = "rzp_test_TSGcMCkfMrL3Yg"
     const val DEFAULT_TEST_KEY_SECRET = "xxaCXvxhFre61PeDpe82Dh1T"
 
+    // Official Razorpay.me Merchant Profile & Direct Payment Page
+    const val RAZORPAY_ME_PAGE_URL = "https://razorpay.me/@shivammaurya3643"
+    const val RAZORPAY_ME_HANDLE = "@shivammaurya3643"
+    const val RAZORPAY_ME_UPI_VPA = "shivammaurya3643@okhdfcbank"
+
+    /**
+     * Builds a direct Razorpay.me URL with optional amount and note.
+     */
+    fun getRazorpayMePaymentUrl(amountRupees: Double? = null, note: String? = null): String {
+        val baseUrl = RAZORPAY_ME_PAGE_URL
+        val params = mutableListOf<String>()
+        if (amountRupees != null && amountRupees > 0) {
+            params.add("amount=${amountRupees.toLong()}")
+        }
+        if (!note.isNullOrBlank()) {
+            params.add("notes=${java.net.URLEncoder.encode(note, "UTF-8")}")
+        }
+        return if (params.isNotEmpty()) "$baseUrl?${params.joinToString("&")}" else baseUrl
+    }
+
     /**
      * Resolves the Razorpay Key ID from BuildConfig (injected via .env by Secrets plugin)
      * or falls back to test key ID.

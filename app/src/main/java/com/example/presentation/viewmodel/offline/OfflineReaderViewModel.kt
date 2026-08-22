@@ -77,10 +77,11 @@ class OfflineReaderViewModel(
 
     fun nextChapter() {
         val total = chapters.value.size
-        if (_selectedChapterIndex.value < total) {
+        if (total == 0 || _selectedChapterIndex.value < total) {
             _selectedChapterIndex.value += 1
         }
     }
+
 
     fun previousChapter() {
         if (_selectedChapterIndex.value > 1) {

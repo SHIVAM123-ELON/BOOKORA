@@ -22,7 +22,9 @@ import com.example.data.repository.offline.OfflineBookRepositoryImpl
 import com.example.data.repository.publisher.PublisherRepositoryImpl
 import com.example.data.repository.review.ReviewRepositoryImpl
 import com.example.domain.financial.PaymentRouter
+import com.example.domain.financial.RazorpayBackendService
 import com.example.domain.publisher.PdfValidationService
+
 import com.example.presentation.navigation.BookoraAppNavHost
 import com.example.presentation.viewmodel.AuthViewModel
 import com.example.presentation.viewmodel.BookDetailsViewModel
@@ -83,6 +85,17 @@ class MainActivity : ComponentActivity() {
         val payoutRepository = PayoutRepositoryImpl(database)
         val adminRepository = FinancialAdminRepositoryImpl(database)
 
+        // Razorpay Payment Links Service & Repository
+        val razorpayBackendService = RazorpayBackendService(
+            database = database,
+            entitlementRepository = entitlementRepository
+        )
+        val paymentLinkRepository = PaymentLinkRepositoryImpl(
+            database = database,
+            razorpayBackendService = razorpayBackendService
+        )
+
+
         // Phase 8 Open Publisher & Rewards Repositories
         val publisherRepository = PublisherRepositoryImpl(database = database)
         val pdfValidationService = PdfValidationService(context = applicationContext)
@@ -115,8 +128,10 @@ class MainActivity : ComponentActivity() {
             pdfValidationService = pdfValidationService,
             reviewRepo = reviewRepository,
             offlineBookRepo = offlineBookRepository,
+            paymentLinkRepo = paymentLinkRepository,
             application = application
         )
+
 
         setContent {
             BookoraTheme {

@@ -1,5 +1,12 @@
 package com.example.presentation.screens.financial
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +48,7 @@ fun CheckoutScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -93,13 +102,14 @@ fun CheckoutScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .navigationBarsPadding()
-                            .padding(16.dp)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
                             onClick = { viewModel.startCheckout() },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp)
+                                .height(50.dp)
                                 .testTag("pay_now_button"),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2)),
@@ -119,12 +129,31 @@ fun CheckoutScreen(
                                 Text(
                                     "Pay ${state.order?.totalMoney?.formatted} with Razorpay",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
+                                    fontSize = 15.sp,
                                     color = Color.White
                                 )
                             }
                         }
+
+                        OutlinedButton(
+                            onClick = { viewModel.openPaymentLinkSheet() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .testTag("share_payment_link_button"),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Color(0xFF00BAF2))
+                        ) {
+                            Icon(Icons.Default.Link, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Share via WhatsApp / SMS / Email",
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF00BAF2)
+                            )
+                        }
                     }
+
                 }
             }
         }
@@ -411,14 +440,166 @@ fun CheckoutScreen(
 
                 // Payment Methods via Razorpay
                 item {
-                    Text(
-                        "Supported Razorpay Methods",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Supported Payment Methods",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFF00BAF2).copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                "Razorpay Gateway",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF007799),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // Official Razorpay.me Direct Merchant Card
+                item {
+                    val orderTotalRupees = (state.order?.totalMinor ?: 0L) / 100.0
+                    val razorpayMeUrl = RazorpayConfig.getRazorpayMePaymentUrl(
+                        amountRupees = orderTotalRupees,
+                        note = "Bookora Order ${state.order?.id ?: ""}"
                     )
+
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F9FF)),
+                        border = BorderStroke(1.5.dp, Color(0xFF00BAF2)),
+                        modifier = Modifier.fillMaxWidth().testTag("razorpay_me_direct_card")
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color(0xFF0C2340),
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text("R", color = Color(0xFF00BAF2), fontWeight = FontWeight.Black, fontSize = 17.sp)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                "Razorpay.me Direct Gateway",
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = Color(0xFF0F172A)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(Icons.Default.Verified, contentDescription = "Verified", tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                                        }
+                                        Text(
+                                            RazorpayConfig.RAZORPAY_ME_HANDLE,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF007799),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = Color(0xFF16A34A).copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        "ACTIVE",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        color = Color(0xFF16A34A),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        RazorpayConfig.RAZORPAY_ME_PAGE_URL,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF0284C7),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText("Razorpay.me Link", RazorpayConfig.RAZORPAY_ME_PAGE_URL)
+                                            clipboard.setPrimaryClip(clip)
+                                            Toast.makeText(context, "Razorpay.me link copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(26.dp)
+                                    ) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy Link", tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                                    }
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(razorpayMeUrl))
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier.weight(1f).height(40.dp).testTag("open_razorpay_me_browser_btn"),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF00BAF2))
+                                ) {
+                                    Icon(Icons.Default.OpenInNew, contentDescription = null, tint = Color(0xFF00BAF2), modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Open in Browser", fontSize = 11.sp, color = Color(0xFF00BAF2), fontWeight = FontWeight.Bold)
+                                }
+
+                                Button(
+                                    onClick = { viewModel.startCheckout() },
+                                    modifier = Modifier.weight(1f).height(40.dp).testTag("pay_via_razorpay_me_btn"),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00BAF2))
+                                ) {
+                                    Icon(Icons.Default.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Pay & Unlock", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 val methods = listOf(
+                    Triple("RAZORPAY_ME", "Razorpay.me Direct Gateway (@shivammaurya3643)", Icons.Default.Storefront),
                     Triple("UPI_FAST_PAY", "UPI (Google Pay, PhonePe, Paytm, BHIM, QR)", Icons.Default.QrCodeScanner),
                     Triple("CARD_PAY", "Cards (Credit / Debit: Visa, Mastercard, RuPay)", Icons.Default.CreditCard),
                     Triple("NET_BANKING", "NetBanking (HDFC, ICICI, SBI, Axis, Kotak & 50+ Banks)", Icons.Default.AccountBalance),
@@ -516,5 +697,32 @@ fun CheckoutScreen(
                 }
             )
         }
+
+        // Razorpay Payment Link Bottom Sheet (WhatsApp, SMS, Email, Link)
+        if (state.isPaymentLinkSheetOpen && state.order != null) {
+            val bookSummary = state.order?.items?.joinToString(", ") { it.titleSnapshot } ?: "Bookora E-Books"
+
+            PaymentLinkBottomSheet(
+                orderId = state.order!!.id,
+                booksSummary = bookSummary,
+                amountFormatted = state.order?.totalMoney?.formatted ?: "₹0.00",
+                amountMinor = state.order?.totalMinor ?: 0L,
+                bookIds = state.order?.items?.map { it.bookId } ?: emptyList(),
+                createdLinkResponse = state.paymentLinkResponse,
+                isGenerating = state.isGeneratingPaymentLink,
+                errorMessage = state.paymentLinkError,
+                onDismiss = { viewModel.closePaymentLinkSheet() },
+                onGenerateLink = { method, name, email, phone, expiryHours ->
+                    viewModel.generatePaymentLink(method, name, email, phone, expiryHours)
+                },
+                onSimulatePaid = { paymentLinkId ->
+                    viewModel.simulatePaymentLinkPaid(paymentLinkId)
+                },
+                onPaymentSuccessDismiss = {
+                    viewModel.closePaymentLinkSheet()
+                }
+            )
+        }
     }
 }
+

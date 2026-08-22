@@ -460,6 +460,7 @@ class ViewModelFactory(
     private val pdfValidationService: PdfValidationService? = null,
     private val reviewRepo: ReviewRepository? = null,
     private val offlineBookRepo: OfflineBookRepository? = null,
+    private val paymentLinkRepo: PaymentLinkRepository? = null,
     private val application: Application? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
@@ -477,7 +478,7 @@ class ViewModelFactory(
                 else throw IllegalArgumentException("CartRepository and CouponRepository required")
             }
             modelClass.isAssignableFrom(CheckoutViewModel::class.java) -> {
-                if (orderRepo != null && paymentRepo != null) CheckoutViewModel(orderRepo, paymentRepo, authRepo) as T
+                if (orderRepo != null && paymentRepo != null) CheckoutViewModel(orderRepo, paymentRepo, authRepo, paymentLinkRepo) as T
                 else throw IllegalArgumentException("OrderRepository and PaymentRepository required")
             }
             modelClass.isAssignableFrom(OrderHistoryViewModel::class.java) -> {
@@ -493,10 +494,15 @@ class ViewModelFactory(
                 else throw IllegalArgumentException("Royalty, Wallet and Payout repositories required")
             }
             modelClass.isAssignableFrom(AdminFinancialViewModel::class.java) -> {
-                if (adminRepo != null && payoutRepo != null && refundRepo != null && orderRepo != null) AdminFinancialViewModel(adminRepo, payoutRepo, refundRepo, orderRepo) as T
+                if (adminRepo != null && payoutRepo != null && refundRepo != null && orderRepo != null) AdminFinancialViewModel(adminRepo, payoutRepo, refundRepo, orderRepo, paymentLinkRepo) as T
                 else throw IllegalArgumentException("Admin, Payout, Refund, Order repositories required")
             }
+            modelClass.isAssignableFrom(PaymentLinkViewModel::class.java) -> {
+                if (paymentLinkRepo != null) PaymentLinkViewModel(paymentLinkRepo, authRepo) as T
+                else throw IllegalArgumentException("PaymentLinkRepository required")
+            }
             modelClass.isAssignableFrom(UploadBookViewModel::class.java) -> {
+
                 if (publisherRepo != null && pdfValidationService != null) UploadBookViewModel(publisherRepo, authRepo, pdfValidationService) as T
                 else throw IllegalArgumentException("PublisherRepository and PdfValidationService required")
             }

@@ -1,8 +1,10 @@
 package com.example.domain.repository.financial
 
 import com.example.core.result.Resource
+import com.example.domain.financial.RazorpayBackendService
 import com.example.domain.model.financial.*
 import kotlinx.coroutines.flow.Flow
+
 
 interface OrderRepository {
     suspend fun createBuyNowOrder(
@@ -180,3 +182,29 @@ data class PlatformFinancialMetrics(
     val activeSubscriptionsCount: Int,
     val currency: String = "INR"
 )
+
+interface PaymentLinkRepository {
+    fun getAllPaymentLinks(): Flow<List<PaymentLink>>
+    fun getPaymentLinksByUser(userId: String): Flow<List<PaymentLink>>
+    fun getPaymentLinkById(id: String): Flow<PaymentLink?>
+    suspend fun createPaymentLink(
+        userId: String,
+        bookIds: List<String>,
+        deliveryMethod: PaymentLinkDeliveryMethod,
+        customerName: String? = null,
+        customerEmail: String? = null,
+        customerPhone: String? = null,
+        couponCode: String? = null
+    ): Resource<RazorpayBackendService.CreatePaymentLinkResponse>
+    suspend fun resendPaymentLink(
+        paymentLinkId: String,
+        deliveryMethod: PaymentLinkDeliveryMethod
+    ): Resource<RazorpayBackendService.CreatePaymentLinkResponse>
+    suspend fun cancelPaymentLink(paymentLinkId: String): Resource<Boolean>
+    suspend fun verifyAndSettlePaymentLink(
+        paymentLinkId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String
+    ): Resource<RazorpayBackendService.VerifyPaymentResponse>
+}
+
